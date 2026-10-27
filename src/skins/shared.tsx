@@ -6,9 +6,11 @@ import {
   Plus,
   Search,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import type { SkinProps } from "../AppSkins";
 import { safeMedia, type Item } from "../schema";
+import { useSkinState } from "../skinState";
+import { StoryMedia } from "../StoryMedia";
 export type Props = SkinProps;
 export const meta = (
   i: Pick<Item, "meta"> | undefined,
@@ -110,26 +112,7 @@ export function Media({
   item: Item;
   className?: string;
 }) {
-  const src = safeMedia(item.media);
-  return src ? (
-    item.kind === "audio" ? (
-      <audio className={className} controls src={src} />
-    ) : item.kind === "video" ? (
-      <video
-        className={className}
-        controls
-        playsInline
-        src={src}
-        onClick={(e) => e.stopPropagation()}
-      />
-    ) : (
-      <img className={className} loading="lazy" alt={item.title} src={src} />
-    )
-  ) : (
-    <div className={`catalog-art ${className}`}>
-      <span>{item.title}</span>
-    </div>
-  );
+  return <StoryMedia item={item} className={className} />;
 }
 export function Row({
   item,
@@ -177,8 +160,8 @@ export function Add({ p, label = "添加内容" }: { p: Props; label?: string })
   ) : null;
 }
 export function useContent(p: Props, first: string) {
-  const [tab, setTab] = useState(first),
-    [q, setQ] = useState("");
+  const [tab, setTab] = useSkinState(p, "view:tab", first),
+    [q, setQ] = useSkinState(p, "view:search", "");
   const items = p.items.filter((i) =>
     (
       i.title +

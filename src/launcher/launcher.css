@@ -177,6 +177,22 @@
   height: 62px;
   flex: none;
 }
+.ios18 .interactive-home .dock .dock-missed-call-badge {
+  position: absolute;
+  top: -5px;
+  right: 7px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border-radius: 11px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  background: #ff3b30;
+  color: #fff;
+  font: 600 12px/1 -apple-system, BlinkMacSystemFont, sans-serif;
+  box-shadow: 0 1px 3px #0003;
+}
 .ios18 .interactive-home .dock .app-name {
   display: none;
 }

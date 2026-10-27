@@ -17,8 +17,10 @@ import {
   Search,
   Bell,
   Circle,
+  ThumbsUp,
 } from "lucide-react";
 import { useSkinState } from "../skinState";
+import { weiboLikes, weiboComments, weiboReposts } from "./weiboCounts";
 import { RichText } from "../RichText";
 import { Avatar, Media, meta } from "./shared";
 import type { Item, UiValue } from "../schema";
@@ -29,6 +31,7 @@ const count = (n: number) =>
 export function SocialDetail(p: {
   app: string;
   item: Item;
+  gallery?: Item[];
   back: () => void;
   owner: string;
   ui?: Record<string, UiValue>;
@@ -52,6 +55,8 @@ export function SocialDetail(p: {
     [copied, setCopied] = useState(false);
   const comments = [...item.comments, ...extra],
     replies = sort ? [...comments].reverse() : comments;
+  const commentTotal = weibo ? weiboComments(item, extra.length) : count(comments.length);
+  const likeTotal = weibo ? weiboLikes(item, liked) : count(item.likes + (liked ? 1 : 0));
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(item.body);
@@ -71,7 +76,7 @@ export function SocialDetail(p: {
     <div className="post-detail-actions">
       <button aria-label="查看评论" onClick={() => setTab("评论")}>
         <MessageCircle />
-        {count(comments.length)}
+        {commentTotal}
       </button>
       <button aria-label="查看转发" onClick={() => setTab("转发")}>
         <Repeat2 />
@@ -86,7 +91,7 @@ export function SocialDetail(p: {
           fill={liked ? "#f91880" : "none"}
           color={liked ? "#f91880" : undefined}
         />
-        {count(item.likes + (liked ? 1 : 0))}
+        {likeTotal}
       </button>
       <button
         aria-label="收藏帖子"
@@ -152,7 +157,8 @@ export function SocialDetail(p: {
         </div>
         <div className="post-detail-body">
           <RichText value={item.richText} fallback={item.body} />
-          {item.media && <Media item={item} />}
+          {weibo && p.gallery?.length ? <div className="weibo-photo-grid">{p.gallery.map((photo) => <Media key={photo.id} item={photo} />)}</div> : item.media && <Media item={item} />}
+          {weibo && item.meta.sourceUrl && <a className="weibo-source-note" href={item.meta.sourceUrl} target="_blank" rel="noreferrer">{item.meta.contentMode === "summary" ? "公开微博摘要" : "公开微博短摘录"} · 查看原微博</a>}
         </div>
         {weibo ? (
           <div className="weibo-share-options">
@@ -184,10 +190,10 @@ export function SocialDetail(p: {
               >
                 {name}{" "}
                 {name === "评论"
-                  ? count(comments.length)
+                  ? commentTotal
                   : name === "赞"
-                    ? count(item.likes + (liked ? 1 : 0))
-                    : meta(item, "reposts", "0")}
+                    ? likeTotal
+                    : weiboReposts(item)}
               </button>
             ))}
           </div>
@@ -240,7 +246,7 @@ export function SocialDetail(p: {
                 </article>
               );
             })}
-            {!replies.length && <p className="post-comments-empty">暂无评论</p>}
+            {!replies.length && <p className="post-comments-empty">{weibo && Number(item.meta.commentCount) > 0 ? "已保留公开评论数量，评论正文尚未导入" : "暂无评论"}</p>}
           </div>
         ) : (
           <p className="post-comments-empty">
@@ -248,6 +254,11 @@ export function SocialDetail(p: {
           </p>
         )}
       </div>
+      {weibo && <div className="weibo-detail-interactions">
+        <button aria-label="查看微博转发数量" onClick={() => setTab("转发")}><Repeat2 size={17} />{weiboReposts(item)}</button>
+        <button aria-label="查看微博评论数量" onClick={() => setTab("评论")}><MessageCircle size={17} />{commentTotal}</button>
+        <button aria-label="点赞微博" aria-pressed={liked} className={liked ? "weibo-liked" : ""} onClick={() => setLiked(!liked)}><ThumbsUp size={17} fill={liked ? "currentColor" : "none"} />{likeTotal}</button>
+      </div>}
       <form
         className="post-detail-reply"
         onSubmit={(e) => {

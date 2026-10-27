@@ -95,7 +95,7 @@ const definitions: [
     ["微信", "通讯录", "朋友圈", "我"],
   ],
   ["qq", "QQ", "messaging", "#529fd3", Users, ["消息", "联系人", "空间"]],
-  ["weibo", "微博", "social", "#db7652", Radio, ["关注", "发现", "我"]],
+  ["weibo", "微博", "social", "#ff7900", Radio, ["关注", "发现", "我"]],
   [
     "redbook",
     "小红书",
@@ -128,14 +128,14 @@ const definitions: [
   ],
   [
     "instagram",
-    "Instagram",
+    "照片墙",
     "social",
     "#ae7d8e",
     Camera,
     ["首页", "Story", "Reels", "私信", "个人主页"],
   ],
   ["tiktok", "TikTok", "media", "#303538", Video, ["推荐", "关注"]],
-  ["twitter", "X", "social", "#343839", AtSign, ["时间线", "回复"]],
+  ["twitter", "推文", "social", "#343839", AtSign, ["时间线", "回复"]],
   ["telegram", "Telegram", "messaging", "#62a6c8", Send, ["聊天", "频道"]],
   [
     "discord",
@@ -176,8 +176,8 @@ const definitions: [
     MessageCircle,
     ["好友", "聊天"],
   ],
-  ["appstore", "App Store", "system", "#087cff", ShoppingBag, ["搜索"]],
-  ["threads", "Threads", "social", "#4d5150", AtSign, ["动态", "回复"]],
+  ["appstore", "应用商店", "system", "#087cff", ShoppingBag, ["搜索"]],
+  ["threads", "脆", "social", "#4d5150", AtSign, ["动态", "回复"]],
 ];
 export const registry: AppPlugin[] = definitions.map(
   ([id, name, engine, color, icon, tabs]) => ({

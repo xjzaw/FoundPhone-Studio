@@ -131,6 +131,7 @@ export const workSchema = z.object({
 export type Work = z.infer<typeof workSchema>;
 export type UiValue = string | number | boolean | string[];
 export type Runtime = {
+  navigation?: { app: string; locked: boolean };
   date?: string;
   elapsedMs?: number;
   clockRemainderMs?: number;
@@ -138,7 +139,9 @@ export type Runtime = {
   incomingCall?: {
     caller: string;
     target: string;
-    status: "ringing" | "answered";
+    status: "ringing" | "answered" | "declined" | "ended";
+    captions?: string[];
+    startedAt?: number;
   } | null;
   ui?: Record<string, Record<string, UiValue>>;
   workId: string;
@@ -196,9 +199,7 @@ export function validateWork(input: unknown): Work {
   return workSchema.parse(input);
 }
 export function safeMedia(value: string) {
-  return /^data:(image\/(png|jpeg|webp|gif)|audio\/(mpeg|mp3|wav|ogg|webm|mp4)|video\/(mp4|webm));base64,[a-zA-Z0-9+/=\s]+$/.test(
-    value,
-  )
-    ? value
-    : "";
+  const embedded = /^data:(image\/(png|jpeg|webp|gif)|audio\/(mpeg|mp3|wav|ogg|webm|mp4)|video\/(mp4|webm));base64,[a-zA-Z0-9+/=\s]+$/.test(value);
+  const packagedVideo = /^\.\/story-assets\/[A-Za-z0-9][A-Za-z0-9._-]*\.(mp4|webm)$/i.test(value);
+  return embedded || packagedVideo ? value : "";
 }

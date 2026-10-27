@@ -127,7 +127,8 @@
   margin-top: 10px;
   color: #45474a;
 }
-.tr-actions button {
+.tr-actions button,
+.tr-actions > span {
   display: flex;
   align-items: center;
   gap: 5px;

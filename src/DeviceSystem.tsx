@@ -69,6 +69,7 @@ export function DeviceLock({
   onUnlock,
   onCamera,
   onLight,
+  onSelectNotificationApp,
 }: {
   work: Work;
   time: string;
@@ -78,6 +79,7 @@ export function DeviceLock({
   setPinOpen: (v: boolean) => void;
   error: string;
   onUnlock: (v: string) => void;
+  onSelectNotificationApp: (appId: string, index: number) => void;
   onCamera: () => void;
   onLight: () => void;
 }) {
@@ -130,7 +132,7 @@ export function DeviceLock({
                 compact
                 notices={notices}
                 apps={work.apps}
-                onOpen={open}
+                onOpen={onSelectNotificationApp}
                 onDismiss={onDismiss}
               />
             )}

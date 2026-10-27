@@ -27,8 +27,10 @@ import {
 } from "lucide-react";
 import type { SkinProps } from "../../AppSkins";
 import { Avatar, Media } from "../../skins/shared";
-import { useSkinState } from "../../skinState";
+import { useSkinState, useItemState } from "../../skinState";
 import { makeItem, type Item } from "../../schema";
+import { InstagramProfile } from "../../skins/InstagramProfile";
+import { InstagramDirect, instagramDirectPreview } from "../../skins/InstagramDirect";
 import "./ui.css";
 import "./adapter.css";
 function grouped(items: Item[]) {
@@ -64,8 +66,8 @@ function Back({ onClick }: { onClick: () => void }) {
 export function MymyKakao(p: SkinProps) {
   const [tab, setTab] = useSkinState<string>(p, "mymyTab", "聊天"),
     [sent, setSent] = useSkinState<string[]>(p, "mymyKktSent", []),
-    [draft, setDraft] = useState(""),
-    [query, setQuery] = useState(""),
+    [draft, setDraft] = useSkinState(p, "view:MymyKakao:draft", ""),
+    [query, setQuery] = useSkinState(p, "view:MymyKakao:query", ""),
     [menu, setMenu] = useState(false);
   const list = grouped(p.items),
     messages = [
@@ -314,22 +316,26 @@ export function MymyKakao(p: SkinProps) {
   );
 }
 export function MymyInstagram(p: SkinProps) {
-  const [tab, setTab] = useSkinState<string>(p, "mymyTab", "主页"),
+  const profile = p.items.find((item) => item.meta.profile === "true");
+  const [tab, setTab] = useSkinState<string>(p, profile ? "instagram-profile-tab" : "mymyTab", profile ? "个人主页" : "主页"),
     [liked, setLiked] = useSkinState<string[]>(p, "mymyLiked", []),
     [saved, setSaved] = useSkinState<string[]>(p, "mymySaved", []),
     [replies, setReplies] = useSkinState<string[]>(p, "mymyReplies", []),
     [seen, setSeen] = useSkinState<string[]>(p, "mymySeen", []);
-  const [sheet, setSheet] = useState<Item | null>(null),
-    [selected, setSelected] = useState<Item | null>(null),
-    [story, setStory] = useState(0),
-    [draft, setDraft] = useState(""),
+  const [sheet, setSheet] = useItemState(p, "view:MymyInstagram:sheet", null),
+    [selected, setSelected] = useItemState(p, "view:MymyInstagram:selected", null),
+    [story, setStory] = useSkinState(p, "view:MymyInstagram:story", 0),
+    [draft, setDraft] = useSkinState(p, "view:MymyInstagram:draft", ""),
     [pop, setPop] = useState("");
+  const [directId, setDirectId] = useSkinState(p, "view:MymyInstagram:direct", "");
   const posts = p.items.filter(
-      (i) => i.folder !== "私信" && i.meta.story !== "true",
-    ),
+      (i) => i.folder !== "私信" && i.meta.story !== "true" && i.meta.profile !== "true",
+    ).sort((a, b) => b.time.localeCompare(a.time) || a.sender.localeCompare(b.sender)),
     stories = p.items.filter((i) => i.meta.story === "true"),
-    dms = p.items.filter((i) => i.folder === "私信"),
+    dms = p.items.filter((i) => i.folder === "私信" && !i.meta.conversationId),
     active = stories[story - 1];
+  const ownPosts = profile ? posts.filter((item) => item.sender === profile.meta.handle || item.sender === p.owner) : posts;
+  const direct = dms.find((item) => item.id === directId && item.meta.conversation === "true");
   const toggle = (id: string, values: string[], set: (v: string[]) => void) =>
     set(values.includes(id) ? values.filter((v) => v !== id) : [...values, id]);
   useEffect(() => {
@@ -354,11 +360,11 @@ export function MymyInstagram(p: SkinProps) {
     }
   };
   const post = (i: Item) => (
-    <article className="igp" key={i.id}>
+    <article className="igp" key={i.id} data-author={i.sender} data-time={i.time}>
       <header className="igph">
         <Avatar name={i.sender} src={i.avatar} />
         <div className="igpn">
-          <button onClick={() => setTab("个人主页")}>
+          <button onClick={() => i.sender === profile?.meta.handle || i.sender === p.owner ? setTab("个人主页") : openPost(i)}>
             <b>{i.sender}</b>
           </button>
           <small>{i.meta.location || i.time}</small>
@@ -403,7 +409,7 @@ export function MymyInstagram(p: SkinProps) {
         >
           <MessageCircle />
         </button>
-        <button aria-label="分享帖子" onClick={() => setTab("私信")}>
+        <button aria-label="分享帖子" onClick={() => { setSelected(null); setTab("私信"); }}>
           <Send />
         </button>
         <button
@@ -415,7 +421,7 @@ export function MymyInstagram(p: SkinProps) {
           <Bookmark fill={saved.includes(i.id) ? "currentColor" : "none"} />
         </button>
       </div>
-      <p className="lk2">{i.likes + (liked.includes(i.id) ? 1 : 0)} 次赞</p>
+      <p className="lk2">{i.meta.likesUnknown === "true" ? (liked.includes(i.id) ? "你已点赞" : "点赞") : `${i.likes + (liked.includes(i.id) ? 1 : 0)} 次赞`}</p>
       <button
         className="igc"
         onClick={() => {
@@ -425,27 +431,27 @@ export function MymyInstagram(p: SkinProps) {
         <b>{i.sender}</b> {i.body}
       </button>
       <button className="cmall" onClick={() => setSheet(i)}>
-        查看评论{" "}
-        {i.comments.length +
-          replies.filter((r) => r.startsWith(i.id + "\t")).length}
+        查看评论{i.meta.commentsUnknown !== "true" ? " " + (i.comments.length + replies.filter((r) => r.startsWith(i.id + "\t")).length) : ""}
       </button>
+      {i.meta.sourceUrl && <a className="cmall" href={i.meta.sourceUrl} target="_blank" rel="noreferrer">查看原帖</a>}
       <p className="igt">{i.time}</p>
     </article>
   );
   return (
     <div className="mymy-ui mymy-instagram" data-mymy="instagram">
       <div className="ig">
+        {direct ? <InstagramDirect p={p} conversation={direct} back={() => setDirectId("")} /> : <>
         <header className="igh">
           <button
-            aria-label={selected ? "返回Instagram动态" : "关闭当前App"}
+            aria-label={selected ? "返回照片墙动态" : "关闭当前应用"}
             onClick={() => (selected ? setSelected(null) : p.onBack())}
           >
             <ArrowLeft />
           </button>
           <span className="igl2">
-            {selected ? "帖子" : tab === "主页" ? "Instagram" : tab}
+            {selected ? "帖子" : tab === "个人主页" && profile ? profile.meta.handle : tab === "主页" ? "照片墙" : tab}
           </span>
-          <button aria-label="打开私信" onClick={() => setTab("私信")}>
+          <button aria-label="打开私信" onClick={() => { setSelected(null); setTab("私信"); }}>
             <Send />
           </button>
         </header>
@@ -474,47 +480,16 @@ export function MymyInstagram(p: SkinProps) {
             </>
           )}
           {!selected && tab === "个人主页" && (
-            <>
-              <div className="pf">
-                <Avatar name={p.owner || "机主"} />
-                <div className="ps">
-                  <div>
-                    <b>{posts.length}</b>
-                    <small>帖子</small>
-                  </div>
-                  <div>
-                    <b>—</b>
-                    <small>粉丝</small>
-                  </div>
-                  <div>
-                    <b>—</b>
-                    <small>关注</small>
-                  </div>
-                </div>
-              </div>
-              <p className="pn">{p.owner}</p>
-              <div className="ptab">
-                <div className="on">
-                  <Grid />
-                </div>
-              </div>
-              <div className="pg2">
-                {posts.map((i) => (
-                  <button key={i.id} onClick={() => openPost(i)}>
-                    <Media item={i} />
-                  </button>
-                ))}
-              </div>
-            </>
+            <InstagramProfile p={p} profile={profile} posts={ownPosts} savedPosts={posts} savedIds={saved} openPost={openPost} />
           )}
           {!selected && tab === "私信" && (
             <>
               {dms.map((i) => (
-                <button className="kzkr" key={i.id} onClick={() => openPost(i)}>
+                <button className="kzkr" key={i.id} aria-label={i.meta.conversation === "true" ? `打开与${i.title}的私信` : undefined} onClick={() => { if (i.meta.conversation === "true" && !p.creator) { p.onRead(i.id); setSelected(null); setDirectId(i.id); } else openPost(i); }}>
                   <Avatar name={i.sender} src={i.avatar} />
                   <span className="kzkn">
                     <b>{i.title}</b>
-                    <small>{i.body}</small>
+                    <small>{i.meta.conversation === "true" ? instagramDirectPreview(p, i) : i.body}</small>
                   </span>
                 </button>
               ))}
@@ -525,7 +500,7 @@ export function MymyInstagram(p: SkinProps) {
             <>
               <input
                 className="mymy-search"
-                aria-label="搜索Instagram"
+                aria-label="搜索照片墙"
                 placeholder="搜索"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -553,6 +528,7 @@ export function MymyInstagram(p: SkinProps) {
             </button>
           ))}
         </nav>
+        </>}
       </div>
       {sheet && (
         <div className="kzcs">
@@ -561,7 +537,7 @@ export function MymyInstagram(p: SkinProps) {
             aria-label="关闭评论"
             onClick={() => setSheet(null)}
           />
-          <section className="kzsh" role="dialog" aria-label="Instagram评论">
+          <section className="kzsh" role="dialog" aria-label="照片墙评论">
             <div className="mymy-sheet-handle" />
             <header>
               <b>评论</b>
@@ -570,6 +546,7 @@ export function MymyInstagram(p: SkinProps) {
               </button>
             </header>
             <div className="mymy-comments">
+              {sheet.meta.commentsUnknown === "true" && <p className="mymy-empty">暂未载入原帖评论，可在此添加本地评论。</p>}
               {[
                 ...sheet.comments,
                 ...replies
@@ -643,7 +620,7 @@ export function MymyX(p: SkinProps) {
     [likes, setLikes] = useSkinState<string[]>(p, "mymyXLikes", []),
     [reposts, setReposts] = useSkinState<string[]>(p, "mymyXReposts", []),
     [marks, setMarks] = useSkinState<string[]>(p, "mymyXMarks", []),
-    [query, setQuery] = useState("");
+    [query, setQuery] = useSkinState(p, "view:MymyX:query", "");
   const isLiked = (id: string) =>
     typeof p.ui?.["liked-" + id] === "boolean"
       ? Boolean(p.ui["liked-" + id])
@@ -661,7 +638,7 @@ export function MymyX(p: SkinProps) {
     >
       <div className="kzxw">
         <header className="kzxh">
-          <button aria-label="关闭当前App" onClick={p.onBack}>
+          <button aria-label="关闭当前应用" onClick={p.onBack}>
             <ArrowLeft />
           </button>
           <div className="kzxlg">𝕏</div>
@@ -690,7 +667,9 @@ export function MymyX(p: SkinProps) {
           />
         )}
         <div className="kzxfd">
+          {["通知", "私信"].includes(tab) && <div className="mymy-empty"><h3>{tab}</h3><p>{tab === "通知" ? "暂无新通知" : "暂无私信"}</p></div>}
           {p.items
+            .filter(() => !["通知", "私信"].includes(tab))
             .filter((i) => (i.title + i.body).includes(query))
             .map((i) => (
               <article className="kzxt" key={i.id}>
@@ -699,11 +678,11 @@ export function MymyX(p: SkinProps) {
                   <div className="kzxn">
                     <b>{i.sender}</b>
                     <small>
-                      @{i.meta.handle || "user"} · {i.time.slice(-5)}
+                      @{i.meta.handle || "用户"} · {i.time.slice(-5)}
                     </small>
-                    <em>
+                    <button aria-label="查看帖子选项" onClick={() => p.onItem(i)}>
                       <MoreHorizontal size={18} />
-                    </em>
+                    </button>
                   </div>
                   <button
                     className="kzxx"
@@ -778,8 +757,7 @@ export function MymyX(p: SkinProps) {
             <button
               key={n}
               aria-label={["时间线", "搜索", "通知", "私信"][n]}
-              onClick={() => n < 2 && setTab(n ? "搜索" : "推荐")}
-              disabled={n > 1}
+              onClick={() => setTab(["推荐", "搜索", "通知", "私信"][n])}
             >
               <Icon />
             </button>

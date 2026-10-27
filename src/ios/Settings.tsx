@@ -1,4 +1,6 @@
-import { useState, type ComponentType } from "react";
+import { type ComponentType } from "react";
+import { useSkinState } from "../skinState";
+import type { UiValue } from "../schema";
 import {
   Plane,
   Wifi,
@@ -31,7 +33,7 @@ const groups: Row[][] = [
     [Signal, "蜂窝网络", "#34c759"],
     [Link, "个人热点", "#65ce88"],
     [Battery, "电池", "#34c759"],
-    [Globe, "VPN", "#007aff"],
+    [Globe, "虚拟专用网络", "#007aff"],
   ],
   [
     [Settings, "通用", "#8e8e93"],
@@ -42,7 +44,7 @@ const groups: Row[][] = [
     [Bell, "通知", "#ff3b30"],
     [Volume2, "声音与触感", "#ff2d55"],
     [Moon, "专注模式", "#5856d6"],
-    [Shield, "面容 ID 与密码", "#34c759"],
+    [Shield, "面容识别与密码", "#34c759"],
   ],
 ];
 export function NativeSettings({
@@ -51,19 +53,26 @@ export function NativeSettings({
   creator,
   onItem,
   onSettings,
+  onRestart,
+  ui,
+  onUi,
 }: {
   work: Work;
   items: Item[];
   creator: boolean;
   onItem: (i: Item) => void;
   onSettings?: () => void;
+  onRestart?: () => void;
+  ui?: Record<string, UiValue>;
+  onUi?: (key: string, value: UiValue) => void;
 }) {
-  const nav = useNavigation(),
-    [query, setQuery] = useState(""),
-    [airplane, setAirplane] = useState(false),
-    [wifi, setWifi] = useState(true),
-    [bluetooth, setBluetooth] = useState(true),
-    [lowPower, setLowPower] = useState(false);
+  const persistent = { ui, onUi };
+  const nav = useNavigation(persistent),
+    [query, setQuery] = useSkinState(persistent, "view:settings:query", ""),
+    [airplane, setAirplane] = useSkinState(persistent, "airplane", false),
+    [wifi, setWifi] = useSkinState(persistent, "wifi", true),
+    [bluetooth, setBluetooth] = useSkinState(persistent, "bluetooth", true),
+    [lowPower, setLowPower] = useSkinState(persistent, "lowPower", false);
   const row = (label: string, value?: string, click?: () => void) => (
     <button key={label} className="settings-native-row" onClick={click}>
       <span>{label}</span>
@@ -83,8 +92,8 @@ export function NativeSettings({
         return (
           <div className="settings-group">
             {row("关于本机", "", () => nav.push("关于本机"))}
-            {row("软件更新", "iOS 18.0", () => nav.push("软件更新"))}
-            {row("iPhone 储存空间", "", () => nav.push("iPhone 储存空间"))}
+            {row("软件更新", "系统 18.0", () => nav.push("软件更新"))}
+            {row("手机储存空间", "", () => nav.push("手机储存空间"))}
             {row("日期与时间", "", () => nav.push("日期与时间"))}
             {row("语言与地区", "简体中文", () => nav.push("语言与地区"))}
           </div>
@@ -92,9 +101,9 @@ export function NativeSettings({
       case "关于本机":
         return (
           <div className="settings-group">
-            {row("名称", work.phone.owner + "的 iPhone")}
-            {row("iOS 版本", "18.0")}
-            {row("机型名称", "iPhone 15 Pro")}
+            {row("名称", work.phone.owner + "的手机")}
+            {row("系统版本", "18.0")}
+            {row("机型名称", "虚拟手机十五代专业版")}
             {row("照片", String(work.data.photos?.length || 0))}
             {row(
               "应用程序",
@@ -157,7 +166,7 @@ export function NativeSettings({
             {row("时区", "中国标准时间")}
           </div>
         );
-      case "iPhone 储存空间":
+      case "手机储存空间":
         return (
           <div className="settings-group">
             {work.apps
@@ -168,7 +177,7 @@ export function NativeSettings({
       case "软件更新":
         return (
           <p className="settings-page-caption">
-            iOS 18.0 · 此为作品中的虚拟系统，不下载系统更新。
+            系统 18.0 · 此为作品中的虚拟系统，不下载系统更新。
           </p>
         );
       default:
@@ -177,7 +186,7 @@ export function NativeSettings({
             <div className="settings-group">
               {row(
                 nav.page,
-                nav.page === "面容 ID 与密码"
+                nav.page === "面容识别与密码"
                   ? work.phone.passcode
                     ? "已设置密码"
                     : "未设置密码"
@@ -203,6 +212,22 @@ export function NativeSettings({
         ) : (
           <>
             <h1>设置</h1>
+            {!creator && onRestart && !query && (
+              <div className="settings-group">
+                <button
+                  className="settings-native-row"
+                  style={{ color: "#ff3b30" }}
+                  onClick={() => {
+                    if (window.confirm("重新开始会清空当前故事进度和互动记录，确定继续吗？")) {
+                      onRestart();
+                    }
+                  }}
+                >
+                  <span>重新开始故事</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
             {!query && (
               <button
                 className="settings-account"
@@ -211,7 +236,7 @@ export function NativeSettings({
                 <span>{work.phone.owner.slice(0, 1)}</span>
                 <div>
                   <strong>{work.phone.owner}</strong>
-                  <small>Apple 账户、iCloud 与更多</small>
+                  <small>账户、云储存与更多</small>
                 </div>
                 <ChevronRight size={17} />
               </button>

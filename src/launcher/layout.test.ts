@@ -11,6 +11,31 @@ import {
 } from "./layout";
 const work = () => compileStory(blank).work;
 describe("device layout", () => {
+  it("localizes legacy default names while preserving custom layout and names", () => {
+    const w = work();
+    const layout = defaultLayout(w);
+    layout.apps.find((app) => app.id === "instagram")!.name = "Instagram";
+    layout.apps.find((app) => app.id === "threads")!.name = "我的动态";
+    layout.apps.find((app) => app.id === "wechat")!.dock = true;
+    const restored = validateLayout(layout, w);
+    expect(restored.apps.find((app) => app.id === "instagram")!.name).toBe("照片墙");
+    expect(restored.apps.find((app) => app.id === "threads")!.name).toBe("我的动态");
+    expect(restored.apps.find((app) => app.id === "wechat")!.dock).toBe(true);
+  });
+  it("applies author-hidden apps to previously saved layouts", () => {
+    const w = work();
+    const authorContacts = w.apps.find((app) => app.id === "contacts")!;
+    authorContacts.installed = true;
+    authorContacts.visible = false;
+    const saved = defaultLayout(w);
+    saved.apps.find((app) => app.id === "contacts")!.visible = true;
+    const restored = validateLayout(saved, w);
+    expect(restored.apps.find((app) => app.id === "contacts")).toMatchObject({
+      installed: true,
+      visible: false,
+      dock: false,
+    });
+  });
   it("keeps all 47 apps and only defaults installed", () => {
     const l = defaultLayout(work());
     expect(l.apps).toHaveLength(49);

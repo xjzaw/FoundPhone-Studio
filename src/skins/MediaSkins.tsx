@@ -16,7 +16,6 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { useState } from "react";
 import { safeMedia, type Item } from "../schema";
 import {
   Avatar,
@@ -39,16 +38,19 @@ function TrackPlayer({
   p: Props;
   onNext: () => void;
 }) {
+  const media = safeMedia(item.media) || "";
+  const cover = media.startsWith("data:image/") ? media : "";
+  const audio = media.startsWith("data:audio/");
   return (
     <div className="track-player">
       <button onClick={() => p.onItem(item)}>
-        <Music size={20} />
+        {cover ? <img className="track-player-cover" src={cover} alt={`${item.title}封面`} /> : <Music size={20} />}
         <span>
           {item.title}
           <small>{item.sender}</small>
         </span>
       </button>
-      {item.kind === "audio" && safeMedia(item.media) ? (
+      {item.kind === "audio" && audio ? (
         <AudioPlayer p={p} item={item} />
       ) : (
         <button onClick={() => p.onItem(item)}>查看</button>
@@ -61,7 +63,7 @@ function TrackPlayer({
 }
 export function SpotifySkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "首页");
-  const [playlist, setPlaylist] = useState(""),
+  const [playlist, setPlaylist] = useSkinState(p, "view:SpotifySkin:playlist", ""),
     [track, setTrack] = useTrack(p, items);
   const list = playlist
     ? items.filter((i) => (i.folder || "我的音乐") === playlist)
@@ -150,7 +152,7 @@ export function SpotifySkin(p: Props) {
 }
 export function NeteaseSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "发现");
-  const [folder, setFolder] = useState(""),
+  const [folder, setFolder] = useSkinState(p, "view:NeteaseSkin:folder", ""),
     [track, setTrack] = useTrack(p, items);
   const list = folder
     ? items.filter((i) => (i.folder || "我的歌单") === folder)
@@ -242,10 +244,10 @@ export function NeteaseSkin(p: Props) {
 }
 export function YouTubeSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "首页");
-  const [category, setCategory] = useState("全部");
+  const [category, setCategory] = useSkinState(p, "view:YouTubeSkin:category", "全部");
   const list = items.filter((i) =>
-    tab === "Shorts"
-      ? i.folder === "Shorts"
+    tab === "短视频"
+      ? i.folder === "短视频"
       : tab === "订阅"
         ? i.folder === "订阅"
         : tab === "播放列表"
@@ -270,7 +272,7 @@ export function YouTubeSkin(p: Props) {
         )}
       </div>
       <div className="catalog-scroll">
-        <div className={tab === "Shorts" ? "youtube-shorts" : "youtube-videos"}>
+        <div className={tab === "短视频" ? "youtube-shorts" : "youtube-videos"}>
           {list.map((i) => (
             <article key={i.id}>
               <button className="youtube-thumb" onClick={() => p.onItem(i)}>
@@ -292,7 +294,7 @@ export function YouTubeSkin(p: Props) {
         <Empty items={list} />
       </div>
       <Tabs
-        tabs={["首页", "Shorts", "订阅", "播放列表"]}
+        tabs={["首页", "短视频", "订阅", "播放列表"]}
         value={tab}
         set={setTab}
         icons={[<Home />, <Video />, <Users />, <User />]}
@@ -302,7 +304,7 @@ export function YouTubeSkin(p: Props) {
 }
 export function BilibiliSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "首页");
-  const [category, setCategory] = useState("推荐");
+  const [category, setCategory] = useSkinState(p, "view:BilibiliSkin:category", "推荐");
   const list =
     tab === "历史"
       ? items.filter((i) => i.folder === "历史")
@@ -342,7 +344,7 @@ export function BilibiliSkin(p: Props) {
                 </small>
               </div>
               <strong>{i.title}</strong>
-              <span>UP · {i.sender}</span>
+              <span>作者 · {i.sender}</span>
             </button>
           ))}
         </div>

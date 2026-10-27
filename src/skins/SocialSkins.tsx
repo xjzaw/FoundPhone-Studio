@@ -1,4 +1,5 @@
 import { useSkinState } from "../skinState";
+import { weiboLikes, weiboComments, weiboReposts } from "./weiboCounts";
 import {
   ArrowDown,
   ArrowUp,
@@ -16,6 +17,16 @@ import {
   Users,
   Share2,
   ThumbsUp,
+  Search,
+  Settings,
+  ChevronLeft,
+  ChevronDown,
+  SlidersHorizontal,
+  Pencil,
+  Plus,
+  FileText,
+  CalendarDays,
+  Send,
 } from "lucide-react";
 import { useState } from "react";
 import type { Item } from "../schema";
@@ -57,7 +68,7 @@ function Actions({ p, item }: { p: Props; item: Item }) {
 function PostHeader({ item, p }: { item: Item; p: Props }) {
   return (
     <button className="social-author" onClick={() => p.onItem(item)}>
-      <Avatar name={item.sender} />
+      <Avatar name={item.sender} src={item.avatar} />
       <span>
         <strong>{item.sender}</strong>
         <small>{meta(item, "handle", item.time)}</small>
@@ -67,77 +78,164 @@ function PostHeader({ item, p }: { item: Item; p: Props }) {
 }
 function WeiboActions({ p, item }: { p: Props; item: Item }) {
   const [liked, setLiked] = useSkinState<boolean>(p, `liked-${item.id}`, false);
+  const [replies] = useSkinState<string[]>(p, `replies-${item.id}`, []);
   return (
     <div className="social-actions weibo-actions">
       <button aria-label={`转发${item.title}`} onClick={() => p.onItem(item)}>
         <Share2 size={17} />
-        {meta(item, "reposts", "转发")}
+        {weiboReposts(item)}
       </button>
       <button aria-label={`评论${item.title}`} onClick={() => p.onItem(item)}>
         <MessageCircle size={17} />
-        {item.comments.length || "评论"}
+        {weiboComments(item, replies.length)}
       </button>
       <button
         aria-label={`喜欢${item.title}`}
         aria-pressed={liked}
+        className={liked ? "weibo-liked" : ""}
         onClick={() => setLiked(!liked)}
       >
         <ThumbsUp size={17} fill={liked ? "currentColor" : "none"} />
-        {item.likes + (liked ? 1 : 0) || "赞"}
+        {weiboLikes(item, liked)}
       </button>
     </div>
   );
 }
 export function WeiboSkin(p: Props) {
-  const { tab, setTab, q, setQ, items } = useContent(p, "关注");
-  const [feed, setFeed] = useState("全部");
-  const list = feed === "全部" ? items : items.filter((i) => i.folder === feed);
+  const { q, setQ, items } = useContent(p, "");
+  const [section, setSection] = useSkinState(p, "view:WeiboSkin:section", "首页");
+  const [feed, setFeed] = useSkinState(p, "view:WeiboSkin:feed", "关注");
+  const [profileTab, setProfileTab] = useSkinState(p, "view:WeiboSkin:profileTab", "微博");
+  const [profileSearch, setProfileSearch] = useSkinState(p, "view:WeiboSkin:profileSearch", false);
+  const [profileUtility, setProfileUtility] = useSkinState(p, "view:WeiboSkin:utility", "");
+  const [profileDraft, setProfileDraft] = useSkinState(p, "weibo:profile-draft", "");
+  const profile = items.find((i) => meta(i, "profile") === "true");
+  const posts = items.filter((i) => meta(i, "profile") !== "true" && !meta(i, "parentPost"));
+  const list =
+    section === "我"
+      ? posts.filter((i) => i.sender === p.owner && (profileTab === "微博" || (profileTab === "精选" && i.favorite) || (profileTab === "视频" && i.kind === "video") || (profileTab === "相册" && i.kind === "image")))
+      : section === "视频"
+        ? posts.filter((i) => i.kind === "video")
+      : section === "发现" || (section === "首页" && feed !== "关注")
+        ? posts.filter((i) => meta(i, "following") !== "true")
+        : posts.filter((i) => meta(i, "following") === "true");
   return (
     <div className="catalog-skin weibo-ui">
-      <Header p={p} />
-      <div className="weibo-sections">
-        {["关注", "发现", "我"].map((t) => (
-          <button
-            key={t}
-            className={tab === t ? "selected" : ""}
-            onClick={() => setTab(t)}
-          >
-            {t}
-          </button>
-        ))}
+      {section !== "我" && section !== "首页" && <Header p={p} />}
+      {section !== "我" && section !== "首页" && <>
+      <div className="weibo-mobile-toolbar">
+        <strong>{section === "我" ? p.owner ?? "我" : section}</strong>
+        <button aria-label="消息" onClick={() => setSection("消息")}><MessageCircle size={18} /></button>
       </div>
-      <div className="catalog-scroll">
-        {tab === "我" ? (
-          <div className="weibo-profile">
-            <Avatar name={p.owner ?? "我"} />
-            <h2>{p.owner ?? "我"}</h2>
-            <span>{items.length} 条微博</span>
+      <div className="weibo-mobile-search"><SearchBox value={q} set={setQ} /></div>
+      </>}
+      {section === "首页" && (
+        <div className="weibo-feed-header">
+          <div className="weibo-feed-tabs">
+            <span className="weibo-super-topic">超话<i /></span>
+            <button className={feed === "推荐" ? "selected" : ""} onClick={() => setFeed("推荐")}>推荐</button>
+            <button className={feed === "关注" ? "selected" : ""} onClick={() => setFeed("关注")}>最新微博<ChevronDown size={13} /></button>
+            <span className="weibo-feed-gift" aria-hidden="true">🎁</span>
+            <span className="weibo-compose-mark" aria-hidden="true">＋</span>
           </div>
-        ) : (
+          <div className="weibo-update-banner">更新了30条微博</div>
+        </div>
+      )}
+      <div className="catalog-scroll">
+        {section === "我" ? (
           <>
-            <SearchBox value={q} set={setQ} />
-            <div className="weibo-feed-filter">
-              {["全部", ...groupItems(items).filter((g) => g !== "未分类")].map(
-                (g) => (
-                  <button key={g} onClick={() => setFeed(g)}>
-                    {g}
-                  </button>
-                ),
-              )}
+            <div className="weibo-profile-banner">
+              <div className="weibo-profile-cover">
+                {profile?.media && <img src={profile.media} alt="章明伯微博封面" />}
+                <div className="weibo-profile-overlay">
+                  <button aria-label="返回微博首页" onClick={() => setSection("首页")}><ChevronLeft size={25} /></button>
+                  <span />
+                  <button aria-label="搜索我的微博" onClick={() => setProfileSearch(!profileSearch)}><Search size={21} /></button>
+                  <button aria-label="个人主页资料" onClick={() => profile && p.onItem(profile)}><Settings size={21} /></button>
+                </div>
+              </div>
+              <div className="weibo-profile-sheet">
+              <div className="weibo-profile-main">
+                <Avatar name={p.owner ?? "我"} src={profile?.avatar} />
+                <div className="weibo-profile-identity">
+                  <h2>{p.owner ?? "我"}<span className="weibo-vip">{meta(profile ?? posts[0], "vip", "微博创作者")}</span></h2>
+                </div>
+              </div>
+              <div className="weibo-profile-stats">
+                <span><strong>{meta(profile ?? posts[0], "followers", "0")}</strong>粉丝</span>
+                <span><strong>{meta(profile ?? posts[0], "followingCount", "0")}</strong>关注</span>
+                <span><strong>{meta(profile ?? posts[0], "engagement", "0")}</strong>转评赞</span>
+              </div>
+              <div className="weibo-profile-video"><span>近30天视频播放量{meta(profile ?? posts[0], "videoViews", "—")}</span><ChevronDown size={15} /></div>
+              <p className="weibo-profile-bio"><FileText size={16} />{meta(profile ?? posts[0], "bio", "")}</p>
+              <button className="weibo-edit-profile" onClick={() => profile && p.onItem(profile)}><Pencil size={14} />编辑个人资料</button>
+              <div className="weibo-profile-tabs">
+                {["精选", "微博", "视频", "相册"].map((label) => <button onClick={() => setProfileTab(label)} className={profileTab === label ? "selected" : ""} key={label}>{label === "微博" && <img src="./icon-assets/weibo.jpg" alt="" />}{label}</button>)}
+                <button aria-label="更多主页资料" onClick={() => profile && p.onItem(profile)}><Plus size={21} /></button>
+              </div>
+              </div>
             </div>
+            {profileSearch && <SearchBox value={q} set={setQ} />}
+            <div className="weibo-all-posts"><span>全部{profileTab} ({meta(profile ?? posts[0], "posts", String(list.length))})</span><button onClick={() => setProfileSearch(!profileSearch)}><SlidersHorizontal size={15} />筛选</button></div>
+            <div className="weibo-memory-banner"><CalendarDays size={44} /><Send size={22} /><div><strong>那 年 今 天</strong><span>那年的你在今天有什么动态 <b>查看</b></span></div></div>
+            <div className="weibo-drafts"><button onClick={() => setProfileUtility("定时发博")}>管理定时发博</button><button onClick={() => setProfileUtility("草稿箱")}>草稿箱 ({profileDraft.trim() ? 1 : 0})</button></div>
+            {profileUtility && <section className="weibo-local-panel" role="dialog" aria-label={profileUtility}>
+              <header><strong>{profileUtility}</strong><button onClick={() => setProfileUtility("")}>关闭</button></header>
+              {profileUtility === "草稿箱" ? <><textarea aria-label="微博草稿" placeholder="写下微博草稿" value={profileDraft} onChange={(event) => setProfileDraft(event.target.value)} /><button onClick={() => setProfileUtility("")}>保存草稿</button></> : <p>暂无定时发布的微博</p>}
+            </section>}
           </>
+        ) : section === "首页" ? (
+          <></>
+        ) : section === "发现" ? (
+          <div className="weibo-home-heading"><strong>发现</strong><small>推荐动态</small></div>
+        ) : section === "视频" ? (
+          <div className="weibo-home-heading"><strong>视频</strong><small>关注账号的视频</small></div>
+        ) : section === "消息" ? (
+          <div className="weibo-empty-page"><MessageCircle size={28} /><strong>暂无新消息</strong><span>评论、赞和私信会显示在这里</span></div>
+        ) : (
+          <div className="weibo-home-heading"><strong>关注的人</strong><small>{list.length} 条动态</small></div>
         )}
         {list.map((i) => (
           <article className="weibo-post" key={i.id}>
             <PostHeader p={p} item={i} />
             <button className="social-body" onClick={() => p.onItem(i)}>
-              <p>{i.body}</p>
-              {i.media && <Media item={i} />}
+              {(() => {
+                const repost = i.body.match(/(?:^|\n)(@[^\n：:]+)[：:]\s*([\s\S]*)$/);
+                const intro = repost ? i.body.slice(0, repost.index).trim() : i.body;
+                return <>
+                  {intro && <p>{intro}</p>}
+                  {repost && <div className="weibo-repost-quote"><span>{repost[1]}：</span>{repost[2]}</div>}
+                </>;
+              })()}
+              {items.some((photo) => photo.meta.parentPost === i.id) ? (
+                <div className="weibo-photo-grid">{items.filter((photo) => photo.meta.parentPost === i.id).map((photo) => <Media key={photo.id} item={photo} />)}</div>
+              ) : i.media && <Media item={i} />}
+              {i.meta.sourceUrl && <small className="weibo-source-note">{i.meta.contentMode === "summary" ? "公开微博摘要" : "公开微博短摘录"} · 数量为导入时快照</small>}
             </button>
             <WeiboActions p={p} item={i} />
           </article>
         ))}
-        <Empty items={list} />
+        {section !== "消息" && <Empty items={list} label={section === "我" ? "还没有发布微博" : "暂时没有新动态"} />}
+      </div>
+      <div className="weibo-mobile-nav">
+        {[
+          { label: "首页", Icon: Home },
+          { label: "视频", Icon: Camera },
+          { label: "发现", Icon: Grid },
+          { label: "消息", Icon: MessageCircle },
+          { label: "我", Icon: User },
+        ].map(({ label, Icon }) => (
+          label === "首页" || label === "我" ? (
+            <button key={label} className={section === label ? "selected" : ""} onClick={() => setSection(label)}>
+              <Icon size={19} strokeWidth={section === label ? 2.3 : 1.7} />
+              <span>{label}</span>
+            </button>
+          ) : (
+            <span key={label} className="weibo-mobile-nav-static" aria-hidden="true">
+              <Icon size={19} strokeWidth={1.7} />
+            </span>
+          )
+        ))}
       </div>
     </div>
   );
@@ -329,7 +427,7 @@ export function RedbookSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "发现");
   const list =
     tab === "收藏"
-      ? items.filter((i) => i.favorite)
+      ? items.filter((i) => p.ui?.[`saved-${i.id}`] === true || (p.ui?.[`saved-${i.id}`] !== false && i.favorite))
       : tab === "关注"
         ? items.filter((i) => i.folder === "关注")
         : items;
@@ -358,7 +456,7 @@ export function RedbookSkin(p: Props) {
                 <Avatar name={i.sender} />
                 <small>{i.sender}</small>
                 <Heart size={12} />
-                <small>{i.likes}</small>
+                <small>{i.likes + (p.ui?.[`liked-${i.id}`] === true ? 1 : 0)}</small>
               </div>
             </button>
           ))}
@@ -597,7 +695,7 @@ function FolderIcon() {
 }
 export function SnapchatSkin(p: Props) {
   const { tab, setTab, items } = useContent(p, "快拍");
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useSkinState(p, "view:SnapchatSkin:index", 0);
   const list = items.filter((i) =>
     tab === "回忆"
       ? i.favorite || i.folder === "回忆"

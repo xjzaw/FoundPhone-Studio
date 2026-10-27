@@ -1,3 +1,4 @@
+import { useSkinState } from "../skinState";
 import {
   Home,
   MapPin,
@@ -9,7 +10,6 @@ import {
   Utensils,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
 import {
   Empty,
   Header,
@@ -92,7 +92,7 @@ export function AlipaySkin(p: Props) {
 }
 export function TaobaoSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "商品");
-  const [status, setStatus] = useState("全部");
+  const [status, setStatus] = useSkinState(p, "view:TaobaoSkin:status", "全部");
   const list = items
     .filter((i) =>
       tab === "商品"

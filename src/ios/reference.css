@@ -188,6 +188,10 @@
   font-size: 11px;
   color: #151515;
 }
+.ios18 .wechat-ui .wx-bottom button:disabled {
+  color: #151515;
+  opacity: 1;
+}
 .ios18 .wechat-ui .wx-bottom button.selected {
   color: #07c160;
 }
@@ -269,7 +273,7 @@
 .ios18 .wechat-ui .wx-discover-groups > .wx-discovery {
   margin-bottom: 8px;
 }
-.ios18 .wechat-ui[data-tab="我"]:not([data-thread="true"]) .wx-nav {
+.ios18 .wechat-ui[data-tab="我"]:not([data-thread="true"]):not([data-moments="true"]):not([data-utility="true"]) .wx-nav {
   visibility: hidden;
   border: 0;
   background: #fff;

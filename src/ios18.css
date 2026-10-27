@@ -412,6 +412,18 @@
   border-radius: 5px;
   min-height: 40px;
 }
+.ios18 .wechat-ui .wx-group-sender {
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.ios18 .wechat-ui .wx-group-system,
+.ios18 .wechat-ui .wx-group-timestamp {
+  font-size: 12px;
+}
+.ios18 .wechat-ui .wx-group-welcome .skin-bubble {
+  width: 100%;
+  max-width: none;
+}
 .ios18 .wechat-ui .skin-bubble:before {
   content: "";
   position: absolute;

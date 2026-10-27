@@ -27,39 +27,42 @@ import {
 import type { SkinProps } from "../AppSkins";
 import { Avatar, Media } from "./shared";
 import { makeItem, type Item } from "../schema";
-import { useSkinState } from "../skinState";
+import { useSkinState, useItemState } from "../skinState";
 import "./threads-reference.css";
+import { ThreadsPrivateProfile } from "./ThreadsPrivateProfile";
 export function ThreadsReference(p: SkinProps) {
-  const [tab, setTab] = useSkinState<string>(p, "threads-tab", "首页"),
+  const profile = p.items.find(i => i.meta.profile === "true");
+  const handle = profile?.sender || p.owner || "机主";
+  const [tab, setTab] = useSkinState<string>(p, profile ? "threads-private-tab" : "threads-tab", profile ? "个人主页" : "首页"),
     [liked, setLiked] = useSkinState<string[]>(p, "threads-liked", []),
-    [saved, setSaved] = useSkinState<string[]>(p, "threads-saved", []),
+    [saved] = useSkinState<string[]>(p, "threads-saved", []),
     [posts, setPosts] = useSkinState<string[]>(p, "threads-posts", []),
     [replies, setReplies] = useSkinState<string[]>(p, "threads-replies", []);
-  const [draft, setDraft] = useState(""),
-    [query, setQuery] = useState(""),
-    [filter, setFilter] = useState("全部"),
+  const [draft, setDraft] = useSkinState(p, "view:ThreadsReference:draft", ""),
+    [query, setQuery] = useSkinState(p, "view:ThreadsReference:query", ""),
+    [filter, setFilter] = useSkinState(p, "view:ThreadsReference:filter", "全部"),
     [side, setSide] = useState(false),
     [compose, setCompose] = useState(false),
     [keyboard, setKeyboard] = useState(false),
     [shift, setShift] = useState(false),
     [numbers, setNumbers] = useState(false),
     [options, setOptions] = useState(false),
-    [selected, setSelected] = useState<Item | null>(null);
+    [selected, setSelected] = useItemState(p, "view:ThreadsReference:selected", null);
   const local = posts.map((body, n) =>
     makeItem({
       id: "local-thread-" + n,
       title: "本地串文",
       body,
-      sender: p.owner || "机主",
+      sender: handle,
       time: p.virtualTime || "09:41",
       meta: { local: "true" },
     }),
   );
   const feed = [
       ...local,
-      ...p.items.filter((i) => i.folder !== "私信" && !i.meta.activityType),
+      ...p.items.filter((i) => i.folder !== "私信" && !i.meta.activityType && i.meta.profile !== "true"),
     ],
-    messages = p.items.filter((i) => i.folder === "私信"),
+    messages = p.items.filter((i) => i.folder === "私信" && !i.meta.dmHandle),
     activities = p.items.filter((i) => i.meta.activityType);
   const toggle = (id: string, items: string[], set: (v: string[]) => void) =>
     set(items.includes(id) ? items.filter((v) => v !== id) : [...items, id]);
@@ -107,25 +110,18 @@ export function ThreadsReference(p: SkinProps) {
             />
             {i.likes + (liked.includes(i.id) ? 1 : 0) || ""}
           </button>
-          <button aria-label={"回复" + i.title} onClick={() => open(i)}>
+          <span aria-label={"回复" + i.title} role="img">
             <MessageCircleIcon />
-            {i.comments.length || ""}
-          </button>
-          <button
-            aria-label={"转发" + i.title}
-            onClick={() => toggle(i.id, saved, setSaved)}
-          >
+            {Number(i.meta.commentCount) || i.comments.length || ""}
+          </span>
+          <span aria-label={"转发" + i.title} role="img">
             <Repeat2 />
-          </button>
-          <button
-            aria-label={"分享" + i.title}
-            onClick={() => {
-              setDraft(i.body);
-              setCompose(true);
-            }}
-          >
+            {i.meta.repostCount && i.meta.repostCount !== "0" ? i.meta.repostCount : ""}
+          </span>
+          <span aria-label={"分享" + i.title} role="img">
             <Send />
-          </button>
+            {i.meta.shareCount && i.meta.shareCount !== "0" ? i.meta.shareCount : ""}
+          </span>
         </div>
       </div>
     </article>
@@ -137,7 +133,7 @@ export function ThreadsReference(p: SkinProps) {
           <>
             <header className="tr-head">
               <button
-                aria-label="返回Threads列表"
+                aria-label="返回脆列表"
                 onClick={() => setSelected(null)}
               >
                 <ArrowLeft />
@@ -167,7 +163,7 @@ export function ThreadsReference(p: SkinProps) {
               }}
             >
               <input
-                aria-label="Threads回复"
+                aria-label="脆回复"
                 placeholder="回复串文"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -177,7 +173,7 @@ export function ThreadsReference(p: SkinProps) {
           </>
         ) : (
           <>
-            <header
+            {tab !== "个人主页" && <header
               className={
                 "tr-head " + (tab === "首页" ? "tr-home-head" : "tr-large-head")
               }
@@ -185,7 +181,7 @@ export function ThreadsReference(p: SkinProps) {
               {tab === "首页" ? (
                 <>
                   <button
-                    aria-label="打开Threads菜单"
+                    aria-label="打开脆菜单"
                     onClick={() => setSide(true)}
                   >
                     <Menu />
@@ -195,7 +191,7 @@ export function ThreadsReference(p: SkinProps) {
                     width="29"
                     height="36"
                     viewBox="0 0 64 64"
-                    aria-label="Threads"
+                    aria-label="脆"
                   >
                     <path
                       d="M48 17C42 5 17 8 14 25c-5 23 26 32 36 17 9-15-9-25-23-17-11 8 7 17 13 8 5-8 0-16-10-14M49 29c6 20-16 31-29 17"
@@ -206,7 +202,7 @@ export function ThreadsReference(p: SkinProps) {
                     />
                   </svg>
                   <button
-                    aria-label="搜索Threads"
+                    aria-label="搜索脆"
                     onClick={() => setTab("搜索")}
                   >
                     <Search />
@@ -220,7 +216,7 @@ export function ThreadsReference(p: SkinProps) {
                       : tab === "动态"
                         ? "动态"
                         : tab === "个人主页"
-                          ? p.owner || "机主"
+                          ? handle
                           : tab}
                   </h1>
                   {(tab === "消息" || tab === "动态") && <BellOff />}
@@ -232,12 +228,12 @@ export function ThreadsReference(p: SkinProps) {
                   </button>
                 </>
               )}
-            </header>
+            </header>}
             {(tab === "消息" || tab === "搜索") && (
               <label className="tr-search">
                 <Search size={18} />
                 <input
-                  aria-label="搜索Threads内容"
+                  aria-label="搜索脆内容"
                   placeholder="搜索"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -328,17 +324,9 @@ export function ThreadsReference(p: SkinProps) {
               </>
             )}
             {tab === "个人主页" && (
-              <>
-                <div className="tr-profile">
-                  <Avatar name={p.owner || "机主"} />
-                  <p>{p.owner}</p>
-                </div>
-                {feed
-                  .filter(
-                    (i) => i.sender === p.owner || i.meta.local === "true",
-                  )
-                  .map(card)}
-              </>
+              <ThreadsPrivateProfile p={p} profile={profile} handle={handle}
+                posts={feed.filter(i => i.sender === handle || i.meta.local === "true")}
+                renderPost={card} onCompose={() => setCompose(true)} onSearch={() => setTab("搜索")} />
             )}
             {((tab === "消息" && !messages.length) ||
               (tab === "首页" && !feed.length)) && (
@@ -353,11 +341,11 @@ export function ThreadsReference(p: SkinProps) {
             key={n}
             aria-label={
               [
-                "Threads首页",
-                "Threads消息",
+                "脆首页",
+                "脆消息",
                 "新建串文",
-                "Threads动态",
-                "Threads个人主页",
+                "脆动态",
+                "脆个人主页",
               ][n]
             }
             className={
@@ -365,13 +353,7 @@ export function ThreadsReference(p: SkinProps) {
                 ? "selected"
                 : ""
             }
-            onClick={() => {
-              setSelected(null);
-              if (n === 2) {
-                setCompose(true);
-                setKeyboard(true);
-              } else setTab(["首页", "消息", "", "动态", "个人主页"][n]);
-            }}
+            onClick={n === 2 ? undefined : () => { setSelected(null); setTab(["首页", "消息", "", "动态", "个人主页"][n]); }}
           >
             <Icon
               fill={
@@ -389,7 +371,7 @@ export function ThreadsReference(p: SkinProps) {
             <header>
               <b>动态</b>
               <button
-                aria-label="关闭Threads菜单"
+                aria-label="关闭脆菜单"
                 onClick={() => setSide(false)}
               >
                 <X />

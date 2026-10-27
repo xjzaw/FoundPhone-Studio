@@ -30,7 +30,7 @@ function Player() {
           <p className="player-footnote">
             {work.description}
             <br />
-            进度保存在此浏览器 · FoundPhone Studio
+            进度保存在此浏览器 · 捡手机故事播放器
           </p>
         </>
       ) : (

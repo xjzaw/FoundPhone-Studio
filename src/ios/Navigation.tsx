@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useSkinState } from "../skinState";
+import type { SkinProps } from "../AppSkins";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeft } from "lucide-react";
 import { IOS_MOTION } from "./tokens";
-export function useNavigation() {
-  const [stack, setStack] = useState<string[]>([]);
+export function useNavigation(p: Pick<SkinProps, "ui" | "onUi"> = {}) {
+  const [stack, setStack] = useSkinState<string[]>(p, "view:settings:stack", []);
   return {
     page: stack.at(-1) || "",
     push: (page: string) => setStack((s) => [...s, page]),

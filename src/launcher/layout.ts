@@ -42,7 +42,7 @@ export function ensureAppStore(work: Work): Work {
           ...work.apps,
           {
             id: "appstore",
-            name: "App Store",
+            name: "应用商店",
             installed: true,
             visible: true,
             dock: false,
@@ -88,6 +88,19 @@ export function validateLayout(raw: unknown, input: Work) {
   layout.apps.push(
     ...w.apps.filter((a) => !layout.apps.some((b) => b.id === a.id)),
   );
+  const legacyNames: Record<string, string[]> = {
+    appstore: ["App Store"], instagram: ["Instagram", "照片墙"], twitter: ["X"], threads: ["Threads"],
+  };
+  for (const app of layout.apps) {
+    const authored = w.apps.find((item) => item.id === app.id);
+    if (authored?.installed && !authored.visible) {
+      app.visible = false;
+      app.dock = false;
+    }
+    if (legacyNames[app.id]?.includes(app.name)) {
+      if (authored) app.name = authored.name;
+    }
+  }
   const store = layout.apps.find((a) => a.id === "appstore");
   if (store) {
     store.installed = true;

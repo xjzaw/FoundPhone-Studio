@@ -1,0 +1,39 @@
+.instagram-profile { position: relative; min-height: 100%; background: #fff; color: #111; }
+.ig-profile-top { display: flex; align-items: center; gap: 21px; padding: 17px 16px 12px; }
+.ig-profile-avatar { position: relative; flex: none; padding: 0; }
+.ig-profile-avatar > .catalog-avatar { width: 75px; height: 75px; border: 1px solid #ececec; overflow: hidden; }
+.ig-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ig-profile-counts { display: flex; flex: 1; justify-content: space-between; gap: 8px; }
+.ig-profile-counts button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; color: #111; }
+.ig-profile-counts strong { font-size: 16px; font-weight: 650; }
+.ig-profile-counts span { font-size: 11px; }
+.ig-profile-description { padding: 0 16px 12px; font-size: 12px; line-height: 1.5; }
+.ig-profile-description > strong { font-weight: 650; }
+.ig-profile-description > p { white-space: pre-line; margin: 2px 0; }
+.ig-profile-description a { display: inline-flex; gap: 4px; align-items: center; color: #164577; text-decoration: none; font-size: 11px; }
+.ig-profile-buttons { display: flex; gap: 7px; padding: 0 13px 17px; }
+.ig-profile-buttons > button { flex: 1; height: 30px; border-radius: 7px; background: #efefef; color: #111; font-size: 11px; font-weight: 600; }
+.ig-profile-buttons > button:last-child { flex: 0 0 32px; display: grid; place-items: center; }
+.ig-profile-tabs { display: flex; height: 42px; border-bottom: 1px solid #eee; }
+.ig-profile-tabs > button { flex: 1; display: grid; place-items: center; color: #999; border-bottom: 2px solid transparent; }
+.ig-profile-tabs > button.active { color: #111; border-color: #111; }
+.mymy-ui .ig-profile-grid { gap: 2px; }
+.mymy-ui .instagram-profile .ig-profile-grid > button { position: relative; aspect-ratio: 3 / 4; padding: 0; }
+.mymy-ui .ig-profile-grid img { display: block; height: 100%; width: 100%; object-fit: cover; }
+.ig-profile-grid .ig-carousel-badge { position: absolute; right: 7px; top: 7px; color: white; filter: drop-shadow(0 1px 2px #0008); }
+.ig-profile-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; padding: 40px 20px; color: #777; text-align: center; font-size: 12px; }
+.ig-profile-empty p { margin: 0; }
+.ig-profile-empty a { color: #1877d2; text-decoration: none; }
+.ig-profile-snapshot { margin: 0; padding: 15px; font-size: 9px; text-align: center; color: #999; }
+.ig-profile-panel { position: absolute; inset: 0; z-index: 10; background: white; }
+.ig-profile-panel > header { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; }
+.ig-profile-large-avatar { display: flex; justify-content: center; padding: 28px; }
+.ig-profile-large-avatar > .catalog-avatar { width: 220px; height: 220px; overflow: hidden; }
+.ig-profile-large-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ig-profile-editor { padding: 20px 16px; display: flex; flex-direction: column; gap: 18px; font-size: 12px; }
+.ig-profile-editor label { display: flex; flex-direction: column; gap: 7px; }
+.ig-profile-editor input, .ig-profile-editor textarea { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ddd; border-radius: 7px; font: inherit; background: white; color: #111; }
+.ig-profile-editor textarea { min-height: 100px; }
+.ig-profile-editor > button, .ig-profile-share > button { padding: 10px; border-radius: 8px; color: white; background: #1688e5; }
+.ig-profile-share { padding: 24px 16px; font-size: 12px; word-break: break-all; }
+.mymy-ui.mymy-instagram .igh .igl2 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 17px; font-weight: 650; font-style: normal; }

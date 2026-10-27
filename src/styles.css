@@ -3853,6 +3853,12 @@ label {
 .wechat-ui .skin-scroll {
   background: #ededed;
 }
+.wx-chat-placeholder {
+  cursor: default;
+}
+.wx-chat-placeholder:hover {
+  background-color: #fff;
+}
 .wx-chat-row,
 .wx-contact {
   display: flex;
@@ -3958,6 +3964,11 @@ label {
 .wx-bottom button.selected {
   color: #07a45b;
 }
+.wx-bottom button:disabled {
+  color: inherit;
+  opacity: 1;
+  cursor: default;
+}
 .skin-messages {
   background: #ededed;
   flex: 1;
@@ -4020,6 +4031,46 @@ label {
 .skin-bubble audio {
   width: 180px;
   height: 35px;
+}
+.wx-group-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+.skin-message.outgoing .wx-group-bubble-wrap {
+  align-items: flex-end;
+}
+.wx-group-sender {
+  color: #888;
+  font-size: 9px;
+  line-height: 1.2;
+  margin: 0 0 4px 2px;
+}
+.wx-group-system,
+.wx-group-timestamp {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #999;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.5;
+  padding: 0 18px;
+  margin: 0 auto 14px;
+}
+.wx-group-timestamp {
+  margin: 7px auto 20px;
+  color: #aaa;
+}
+.wx-group-welcome .wx-group-bubble-wrap {
+  flex: 1;
+  max-width: 84%;
+}
+.wx-group-welcome .skin-bubble {
+  width: 100%;
+  max-width: none;
 }
 .skin-transfer {
   background: #f7a045;
@@ -4849,8 +4900,8 @@ label {
 }
 .incoming-call-screen {
   position: absolute;
-  inset: 43px 0 20px;
-  z-index: 58;
+  inset: 0;
+  z-index: 120;
   background: #35434ce8;
   color: #fff;
   backdrop-filter: blur(30px);
@@ -4889,6 +4940,26 @@ label {
   width: 100%;
   margin-top: 30px;
 }
+.incoming-call-caption {
+  width: 100%;
+  margin-top: 22px;
+  text-align: center;
+}
+.incoming-call-caption time {
+  color: #d3ddd7;
+  font-size: 14px;
+}
+.incoming-call-caption p {
+  min-height: 56px;
+  margin: 20px 0 0;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.incoming-call-caption small {
+  display: block;
+  margin-top: 8px;
+  color: #c2cbd0;
+}
 .incoming-actions {
   display: flex;
   align-items: center;
@@ -4918,3 +4989,13 @@ label {
   background: #e34f58;
   transform: rotate(135deg);
 }
+/* Story actions operate locally and share the persistent app state. */
+.story-detail-actions { display: flex; gap: 10px; padding: 12px 0; }
+.story-detail-actions button { padding: 8px 13px; border: 1px solid #ddd; border-radius: 10px; color: #555; }
+.story-detail-actions button[aria-pressed="true"] { color: #d56824; border-color: #e4ad7d; }
+.story-local-reply { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
+.story-local-reply input { min-width: 0; flex: 1; padding: 9px; border: 1px solid #ddd; border-radius: 8px; }
+.story-local-reply button { padding: 9px; color: #087cff; }
+.story-chat-compose { display: flex; flex: 1; min-width: 0; gap: 5px; }
+.story-chat-compose input { flex: 1; min-width: 0; width: 100%; border: 0; background: white; border-radius: 5px; padding: 8px; color: #222; }
+.story-chat-compose button { color: #148647; font-size: 11px; padding: 4px; }

@@ -43,8 +43,8 @@ import {
   type Props,
 } from "./shared";
 export function PhoneSkin(p: Props) {
-  const { tab, setTab, q, setQ, items } = useContent(p, "最近通话");
-  const [digits, setDigits] = useState(""),
+  const { tab, setTab, q, setQ, items: baseItems } = useContent(p, "最近通话"); const items = [...baseItems].sort((a, b) => b.time.localeCompare(a.time));
+  const [digits, setDigits] = useSkinState(p, "view:PhoneSkin:digits", ""),
     [call, setCall] = useState("");
   const list = tab === "收藏" ? items.filter((i) => i.favorite) : items;
   return (
@@ -99,23 +99,25 @@ export function PhoneSkin(p: Props) {
         ) : (
           <>
             <SearchBox value={q} set={setQ} />
-            {list.map((i) => (
-              <button
-                className={`call-row ${meta(i, "status") === "未接" ? "missed" : ""}`}
-                key={i.id}
-                onClick={() => p.onItem(i)}
-              >
-                <Phone size={17} />
-                <span>
-                  <strong>{i.title}</strong>
-                  <small>
-                    {meta(i, "number", i.sender)} ·{" "}
-                    {meta(i, "status", "通话记录")}
-                  </small>
-                </span>
-                <time>{i.time.slice(5, 10)}</time>
-              </button>
-            ))}
+            {list.map((i) => {
+              const missed = i.kind === "call" && meta(i, "status") === "未接";
+              return (
+                <button
+                  className={`call-row ${missed ? "missed" : ""}`}
+                  key={i.id}
+                  onClick={() => p.onItem(i)}
+                >
+                  <Phone size={17} />
+                  <span>
+                    <strong style={missed ? { color: "#ef4747" } : undefined}>{i.title}</strong>
+                    <small>
+                      {missed ? "未接" : `${meta(i, "number", i.sender)} · ${meta(i, "status", "通话记录")}`}
+                    </small>
+                  </span>
+                  <time>{i.time.slice(5, 10)}</time>
+                </button>
+              );
+            })}
             <Empty items={list} />
           </>
         )}
@@ -184,10 +186,10 @@ export function ContactsSkin(p: Props) {
 }
 export function PhotosSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "图库");
-  const [album, setAlbum] = useState("");
+  const [album, setAlbum] = useSkinState(p, "view:PhotosSkin:album", "");
   const list =
     tab === "收藏"
-      ? items.filter((i) => i.favorite)
+      ? items.filter((i) => p.ui?.[`favorite:${i.id}`] === true || (p.ui?.[`favorite:${i.id}`] !== false && i.favorite))
       : album
         ? items.filter((i) => (i.folder || "未分类") === album)
         : items;
@@ -221,7 +223,7 @@ export function PhotosSkin(p: Props) {
                   onClick={() => p.onItem(i)}
                 >
                   <Media item={i} />
-                  {i.favorite && <Heart size={12} fill="white" />}
+                  {(p.ui?.[`favorite:${i.id}`] === true || (p.ui?.[`favorite:${i.id}`] !== false && i.favorite)) && <Heart size={12} fill="white" />}
                 </button>
               ))}
             </div>
@@ -243,8 +245,8 @@ export function PhotosSkin(p: Props) {
   );
 }
 export function CameraSkin(p: Props) {
-  const [mode, setMode] = useState("照片"),
-    [index, setIndex] = useState(0);
+  const [mode, setMode] = useSkinState(p, "view:CameraSkin:mode", "照片"),
+    [index, setIndex] = useSkinState(p, "view:CameraSkin:index", 0);
   const frames = p.items.filter((i) =>
     mode === "视频" ? i.kind === "video" : i.kind !== "video",
   );
@@ -303,8 +305,8 @@ export function CameraSkin(p: Props) {
   );
 }
 export function SafariSkin(p: Props) {
-  const [q, setQ] = useState(""),
-    [tab, setTab] = useState("书签");
+  const [q, setQ] = useSkinState(p, "view:SafariSkin:q", ""),
+    [tab, setTab] = useSkinState(p, "view:SafariSkin:tab", "书签");
   const items = p.items
     .filter((i) =>
       (i.title + i.body + meta(i, "url"))
@@ -358,7 +360,7 @@ export function SafariSkin(p: Props) {
 }
 export function NotesSkin(p: Props) {
   const { q, setQ, items } = useContent(p, "备忘录");
-  const [folder, setFolder] = useState<string | null>(null);
+  const [folder, setFolder] = useSkinState(p, "view:NotesSkin:folder", "");
   const list = folder
     ? items.filter((i) => (i.folder || "备忘录") === folder)
     : items;
@@ -366,7 +368,7 @@ export function NotesSkin(p: Props) {
     <div className="catalog-skin native-notes">
       <Header p={p} />
       <div className="catalog-scroll">
-        <button className="notes-back" onClick={() => setFolder(null)}>
+        <button className="notes-back" onClick={() => setFolder("")}>
           <Folder size={17} />
           文件夹
         </button>
@@ -409,9 +411,10 @@ export function NotesSkin(p: Props) {
   );
 }
 export function CalendarSkin(p: Props) {
-  const [month, setMonth] = useState(8),
-    [year, setYear] = useState(2026),
-    [day, setDay] = useState(1);
+  const date = (p.virtualDate || "2026-10-26").split("-").map(Number);
+  const [month, setMonth] = useSkinState(p, "view:CalendarSkin:month", date[1] - 1),
+    [year, setYear] = useSkinState(p, "view:CalendarSkin:year", date[0]),
+    [day, setDay] = useSkinState(p, "view:CalendarSkin:day", date[2]);
   const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
   const list = p.items.filter((i) =>
     i.time.startsWith(`${prefix}-${String(day).padStart(2, "0")}`),
@@ -664,7 +667,7 @@ export function RemindersSkin(p: Props) {
 }
 export function FilesSkin(p: Props) {
   const { tab, setTab, q, setQ, items } = useContent(p, "最近项目");
-  const [folder, setFolder] = useState("");
+  const [folder, setFolder] = useSkinState(p, "view:FilesSkin:folder", "");
   const list = folder
     ? items.filter((i) => (i.folder || "我的iPhone") === folder)
     : items;
@@ -867,7 +870,7 @@ export function MapsSkin(p: Props) {
   );
 }
 export function WalletSkin(p: Props) {
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useSkinState(p, "view:WalletSkin:selected", "");
   const cards = p.items.filter((i) => i.folder !== "交易"),
     transactions = p.items.filter((i) => i.folder === "交易");
   return (
@@ -937,3 +940,5 @@ export function FindSkin(p: Props) {
     </div>
   );
 }
+
+

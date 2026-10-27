@@ -1,0 +1,148 @@
+.tr-private-profile {padding-top:6px;}
+.tr-private-heading {display:flex;justify-content:space-between;align-items:center;padding:10px 20px 20px;gap:12px;}
+.tr-private-heading h2 {font-size:26px;letter-spacing:-.7px;margin:0 0 4px;font-weight:750;overflow-wrap:anywhere;}
+.tr-private-heading p {margin:0;font-size:15px;}
+.tr-private-heading p span {color:#999;background:#f5f5f5;border-radius:12px;padding:3px 7px;margin-left:6px;font-size:12px;}
+.tr-default-avatar {width:76px;height:76px;background:#eee;border-radius:50%;display:grid;place-items:center;flex:none;color:#aaa;}
+.tr-private-bio {margin:0 20px 14px;white-space:pre-wrap;overflow-wrap:anywhere;}
+.tr-private-meta {display:flex;justify-content:space-between;margin:0 20px 20px;color:#999;font-size:14px;}
+.tr-private-meta span {display:flex;gap:4px;align-items:center;}
+.tr-profile-buttons {display:flex;gap:10px;padding:0 20px 24px;}
+.tr-profile-buttons button {flex:1;border:1px solid #ddd!important;border-radius:10px;padding:8px 4px!important;font-weight:600!important;text-align:center!important;font-size:14px!important;}
+.tr-profile-sections {display:flex;border-bottom:1px solid #ddd;}
+.tr-profile-sections button {flex:1;text-align:center!important;padding:14px 0!important;color:#999!important;font-weight:600!important;border-bottom:1.5px solid transparent!important;}
+.tr-profile-sections button[aria-pressed=true] {color:#111!important;border-bottom-color:#111!important;}
+.tr-private-notice {display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px 12px;gap:12px;}
+.tr-private-notice strong {font-size:17px;}
+.tr-private-notice p {color:#999;font-size:14px;margin:0;}
+.tr-profile-empty {color:#999;text-align:center;padding:20px;font-size:14px;}
+.tr-profile-shade {position:absolute;inset:0;background:#0005;z-index:45;display:flex;align-items:flex-end;}
+.tr-profile-dialog {background:#fff;border-radius:22px 22px 0 0;width:100%;padding:20px 22px 32px;box-sizing:border-box;max-height:90%;overflow:auto;}
+.tr-profile-dialog header {display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+.tr-profile-dialog label {display:block;font-weight:600;margin:12px 0;}
+.tr-profile-dialog input,.tr-profile-dialog textarea {display:block;width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:9px;background:#fff;color:#111;padding:10px;font:inherit;margin:8px 0;}
+.tr-profile-dialog textarea {min-height:85px;resize:vertical;}
+.tr-profile-dialog form p,.tr-profile-dialog small {color:#999;font-size:13px;}
+.tr-profile-dialog .tr-profile-done {display:block;width:100%;background:#111;color:#fff;border-radius:10px;padding:12px;text-align:center;font-weight:600;}
+.tr-share-handle {font-size:24px;font-weight:700;}
+.tr-owner-tools {display:flex;justify-content:flex-end;gap:22px;padding:12px 20px 18px;}
+.tr-owner-tools svg {width:25px;height:25px;}
+.tr-private-heading {padding:8px 16px 18px;}
+.tr-private-heading h2 {font-size:27px;}
+.tr-account-name {display:flex;align-items:center;gap:7px;font-weight:750!important;}
+.tr-default-avatar {position:relative;display:grid!important;place-items:center;width:66px;height:66px;}
+.tr-default-avatar span {position:absolute;bottom:-2px;left:-8px;background:white;border-radius:50%;border:1px dashed #aaa;padding:4px;display:flex;color:#111;box-shadow:0 2px 9px #0001;}
+.tr-private-meta {margin:0 16px 24px;font-size:16px;}
+.tr-profile-buttons {padding:0 16px 12px;gap:9px;}
+.tr-profile-buttons button {background:#f5f5f5!important;border:0!important;border-radius:11px;padding:10px 3px!important;font-size:15px!important;white-space:nowrap;}
+.tr-profile-buttons .tr-profile-share {flex:0 0 38px;display:grid;place-items:center;}
+.tr-profile-sections button {padding:12px 0!important;font-size:16px!important;}
+.tr-owner-empty {height:320px;display:grid;place-items:center;}
+.tr-owner-empty button {border:1px solid #ddd;border-radius:10px;padding:8px 16px;font-weight:600;font-size:16px;}
+
+.tr-private-meta button {
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+.tr-following-list p {
+  margin: 0;
+  padding: 14px 4px;
+  border-bottom: 1px solid #eee;
+  color: #222;
+  font-size: 15px;
+}
+
+.tr-following-account {
+  display: block;
+  width: 100%;
+  padding: 14px 4px !important;
+  border-bottom: 1px solid #eee !important;
+  color: #222 !important;
+  text-align: left !important;
+}
+.tr-private-dm {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.tr-private-dm > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  padding: 0 18px;
+  border-bottom: 1px solid #eee;
+  font-size: 16px;
+}
+.tr-private-dm > header button, .tr-private-dm > header span {
+  width: 28px;
+}
+.tr-dm-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  overflow: auto;
+  padding: 24px 16px 100px;
+  background: #f7f7f7;
+}
+.tr-dm-message {
+  align-self: flex-start;
+  max-width: 82%;
+}
+.tr-dm-message small {
+  display: block;
+  margin: 0 0 5px 4px;
+  color: #888;
+  font-size: 12px;
+}
+.tr-dm-message p {
+  margin: 0;
+  padding: 11px 13px;
+  border-radius: 17px 17px 17px 5px;
+  background: #fff;
+  color: #222;
+  font-size: 15px;
+}
+.tr-dm-message-outgoing {
+  align-self: flex-end;
+}
+.tr-dm-message-outgoing small {
+  text-align: right;
+}
+.tr-dm-message-outgoing p {
+  border-radius: 17px 17px 5px 17px;
+  background: #d9fdd3;
+}
+.tr-hidden-ending {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: #0008;
+}
+.tr-hidden-ending section {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 18px 16px;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+}
+.tr-hidden-ending strong {
+  color: #111;
+  font-size: 17px;
+}
+.tr-hidden-ending button {
+  color: #888 !important;
+  font-size: 12px !important;
+}

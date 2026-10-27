@@ -1,5 +1,8 @@
 import { StatusGlyph } from "./ios/StatusGlyph";
 import { SocialDetail, socialDetailApps } from "./skins/SocialDetails";
+import { checkpoint, restoreCheckpoint } from "./runtimeCache";
+import { useSkinState } from "./skinState";
+import { ResumeSurface } from "./ResumeSurface";
 import { NativeCalculator } from "./ios/Calculator";
 import { HomeLauncher } from "./launcher/HomeLauncher";
 import { useDeviceLayout } from "./launcher/layout";
@@ -32,6 +35,7 @@ import "./ios/tokens.css";
 import "./ios/reference.css";
 import "./ios/status-bar.css";
 import { WeChatSkin, WhatsAppSkin } from "./AppSkins";
+import { firstCallCaptions, secondCallCaptions } from "./skins/WeChatAlarmChat";
 import { RichText } from "./RichText";
 import {
   useEffect,
@@ -56,6 +60,7 @@ import {
 import { getApp, type AppPlugin } from "./registry";
 import {
   initialRuntime,
+  makeItem,
   safeMedia,
   type Work,
   type Item,
@@ -64,6 +69,75 @@ import {
 } from "./schema";
 import { dispatch, choose, visible, advance } from "./engine";
 import { db } from "./persistence";
+
+const WECHAT_ALARM_KEY = "wechat-duet-alarm-v5";
+type WeChatAlarmRuntimeState = {
+  phase: string;
+  dueAt?: number;
+  segment?: number;
+  startedAt?: number;
+  missed?: boolean;
+  redialCount?: number;
+  messages?: Item[];
+  [key: string]: unknown;
+};
+function readWeChatAlarm(runtime: Runtime): WeChatAlarmRuntimeState {
+  try {
+    return JSON.parse(String(runtime.ui?.wechat?.[WECHAT_ALARM_KEY] || "{}")) as WeChatAlarmRuntimeState;
+  } catch {
+    return { phase: "" };
+  }
+}
+function withWeChatUi(runtime: Runtime, values: Record<string, UiValue>): Runtime {
+  return {
+    ...runtime,
+    ui: {
+      ...runtime.ui,
+      wechat: { ...runtime.ui?.wechat, ...values },
+    },
+  };
+}
+function withPhoneUi(runtime: Runtime, values: Record<string, UiValue>): Runtime {
+  return {
+    ...runtime,
+    ui: {
+      ...runtime.ui,
+      phone: { ...runtime.ui?.phone, ...values },
+    },
+  };
+}
+function withWeChatAlarm(runtime: Runtime, state: WeChatAlarmRuntimeState, extra: Record<string, UiValue> = {}): Runtime {
+  return withWeChatUi(runtime, { [WECHAT_ALARM_KEY]: JSON.stringify(state), ...extra });
+}
+function withPhoneCallRecord(runtime: Runtime, status: "未接" | "已接" | "已拨", callbackSegment?: 1 | 2): Runtime {
+  let records: Item[] = [];
+  try {
+    records = JSON.parse(String(runtime.ui?.phone?.["wechat-call-records"] || "[]")) as Item[];
+  } catch {
+    records = [];
+  }
+  const now = new Date();
+  const stamp = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0") + " " + String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const record = makeItem({
+    id: "wechat-matthew-" + status + "-" + Date.now(),
+    title: "Matthew",
+    sender: "Matthew",
+    body: status === "未接" ? "未接来电" : status === "已接" ? "已接来电" : "已拨出电话",
+    time: stamp,
+    kind: "call",
+    read: false,
+    meta: { status, phone: "", ...(callbackSegment ? { callback: "true", callbackSegment: String(callbackSegment) } : {}) },
+  });
+  return withPhoneUi(runtime, { "wechat-call-records": JSON.stringify([record, ...records]) });
+}
+function readPhoneCallRecords(runtime: Runtime): Item[] {
+  try {
+    const records = JSON.parse(String(runtime.ui?.phone?.["wechat-call-records"] || "[]"));
+    return Array.isArray(records) ? records as Item[] : [];
+  } catch {
+    return [];
+  }
+}
 export function AppIcon({
   id,
   name,
@@ -139,6 +213,7 @@ function PhoneRuntime({
   const [quickCamera, setQuickCamera] = useState(false);
   const [keyboard, setKeyboard] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
+  const [callClock, setCallClock] = useState(Date.now());
   const appSnapshots = useRef(new Map<string, HTMLElement>());
   const [banner, setBanner] = useState("");
   const noticesSeen = useRef(0);
@@ -147,6 +222,7 @@ function PhoneRuntime({
   const shell = useRef<HTMLDivElement>(null);
   const gesture = useRef({ x: 0, y: 0, time: 0, zone: "" });
   const [launchOrigin, setLaunchOrigin] = useState(screenOrigin);
+  const pendingUnlockApp = useRef("");
 
   const beginUnlock = () => {
     setPinError("");
@@ -193,9 +269,47 @@ function PhoneRuntime({
   runtimeRef.current = s;
   const update = (next: Runtime) => {
     runtimeRef.current = next;
+    if (!creator && !external) checkpoint(next);
     setOwn(next);
     onRuntime?.(next);
   };
+  const setPhoneMissedCallBadge = (active: boolean) => {
+    const current = runtimeRef.current;
+    update({
+      ...current,
+      ui: {
+        ...current.ui,
+        phone: { ...current.ui?.phone, missedCallBadge: active },
+      },
+    });
+  };
+  useEffect(() => {
+    if (!ready || creator || external) return;
+    const alarm = readWeChatAlarm(s);
+    if (!(alarm.phase === "first-call-wait" || alarm.phase === "redial-wait" || alarm.phase === "ringing")) return;
+    if (s.incomingCall?.status === "ringing" || s.incomingCall?.status === "answered") return;
+    const dueAt = alarm.phase === "ringing" ? Date.now() : alarm.dueAt || Date.now();
+    const timer = window.setTimeout(() => {
+      const current = runtimeRef.current;
+      const currentAlarm = readWeChatAlarm(current);
+      if (!(currentAlarm.phase === "first-call-wait" || currentAlarm.phase === "redial-wait" || currentAlarm.phase === "ringing")) return;
+      if (currentAlarm.phase !== alarm.phase || (currentAlarm.dueAt || 0) !== (alarm.dueAt || 0)) return;
+      if (current.incomingCall?.status === "ringing" || current.incomingCall?.status === "answered") return;
+      const nextAlarm = { ...currentAlarm, phase: "system-ringing", dueAt: undefined, segment: 1 };
+      const next = withWeChatAlarm({
+        ...current,
+        incomingCall: { caller: "Matthew", target: "wechat-first-call", status: "ringing", captions: firstCallCaptions },
+      }, nextAlarm);
+      update(next);
+      try { navigator.vibrate?.([180, 70, 180]); } catch { /* vibration is optional */ }
+    }, Math.max(0, dueAt - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [s.ui?.wechat?.[WECHAT_ALARM_KEY], s.incomingCall?.status, ready, creator, external]);
+  useEffect(() => {
+    if (s.incomingCall?.status !== "answered") return;
+    const timer = window.setInterval(() => setCallClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [s.incomingCall?.status, s.incomingCall?.startedAt]);
   useEffect(() => {
     let active = true;
     if (creator || external) return;
@@ -203,11 +317,18 @@ function PhoneRuntime({
       .get(work.id)
       .then((saved) => {
         if (!active) return;
-        if (saved && saved.state.revision === work.updatedAt)
-          setOwn(saved.state);
+        const restored = restoreCheckpoint(work) ?? (saved?.state.revision === work.updatedAt ? saved.state : undefined);
+        if (restored) {
+          runtimeRef.current = restored;
+          setOwn(restored);
+          const resume = restored.navigation;
+          if (resume) {
+            setApp(work.apps.some((a) => a.id === resume.app && a.installed) ? resume.app : "");
+            setLocked(resume.locked);
+          }
+        }
         else {
           setOwn(dispatch(work, initialRuntime(work), "start"));
-          if (saved) setLoadError("作品已更新，已开始新的进度。");
         }
         setReady(true);
       })
@@ -220,6 +341,15 @@ function PhoneRuntime({
       active = false;
     };
   }, [work.id, work.updatedAt, creator, external]);
+  useEffect(() => {
+    if (!ready || creator || external) return;
+    const current = runtimeRef.current;
+    if (current.navigation?.app === app && current.navigation.locked === locked) return;
+    const next = { ...current, navigation: { app, locked } };
+    runtimeRef.current = next;
+    checkpoint(next);
+    setOwn(next);
+  }, [app, locked, ready, creator, external]);
   useEffect(() => {
     if (!creator && !external && ready)
       void db.saves
@@ -267,6 +397,8 @@ function PhoneRuntime({
   };
   const open = (id: string) => {
     if (!work.apps.some((a) => a.id === id && a.installed)) return;
+    if (id === "phone" && runtimeRef.current.ui?.phone?.missedCallBadge === true)
+      setPhoneMissedCallBadge(false);
     setApp(id);
     setKeyboard(false);
     setRecent((v) => [id, ...v.filter((a) => a !== id)].slice(0, 8));
@@ -279,9 +411,12 @@ function PhoneRuntime({
   const apps = installedApps.filter((a) => a.visible);
   const unlock = (pin = "") => {
     if (!work.phone.passcode || pin === work.phone.passcode) {
+      const targetApp = pendingUnlockApp.current;
+      pendingUnlockApp.current = "";
       setLocked(false);
       setPinOpen(false);
       event("password", pin);
+      if (targetApp) open(targetApp);
     } else {
       setPinError("密码不正确");
       setPinOpen(true);
@@ -309,7 +444,38 @@ function PhoneRuntime({
         (_, i) => i !== index,
       ),
     });
-  if (!ready) return <div className="phone-loading">正在恢复进度…</div>;
+  const handlePhoneCallback = (item: Item) => {
+    const segment: 1 | 2 = item.meta.callbackSegment === "1" || item.meta.status === "未接" || item.body.includes("未接来电") ? 1 : 2;
+    const current = runtimeRef.current;
+    const startedAt = Date.now();
+    let next: Runtime = {
+      ...current,
+      incomingCall: {
+        caller: "Matthew",
+        target: "wechat-callback-" + segment,
+        status: "answered",
+        captions: segment === 1 ? firstCallCaptions : secondCallCaptions,
+        startedAt,
+      },
+    };
+    next = withWeChatAlarm(next, {
+      ...readWeChatAlarm(current),
+      phase: "callback-connected",
+      dueAt: undefined,
+      segment,
+      startedAt,
+    });
+    if (segment === 1) next = withPhoneCallRecord(next, "已拨", 2);
+    update(next);
+  };  const restartStory = () => {
+    update(dispatch(work, initialRuntime(work), "start"));
+    setApp("");
+    setLocked(true);
+    setPanel("");
+    setFolder("");
+    setKeyboard(false);
+    setPinOpen(false);
+  };  if (!ready) return <div className="phone-loading">正在恢复进度…</div>;
   return (
     <div
       ref={shell}
@@ -428,6 +594,11 @@ function PhoneRuntime({
                 setPinOpen={setPinOpen}
                 error={pinError}
                 onUnlock={unlock}
+                onSelectNotificationApp={(id, index) => {
+                  noticesSeen.current = runtimeRef.current.notifications.length;
+                  dismissNotice(index);
+                  pendingUnlockApp.current = id;
+                }}
                 onLight={() => setPanel("light")}
                 onCamera={() => {
                   setQuickCamera(true);
@@ -449,14 +620,23 @@ function PhoneRuntime({
                   items={[
                     ...(work.data[app] ?? []),
                     ...(s.messages[app] ?? []),
+                    ...(app === "phone" ? readPhoneCallRecords(s) : []),
                   ]}
                   creator={creator}
                   state={s}
+                  systemCall={s.incomingCall}
+                  onSystemCall={(call) => {
+                    const current = runtimeRef.current;
+                    update({ ...current, incomingCall: { ...call, status: "ringing" } });
+                  }}
+                  onMissedCall={() => setPhoneMissedCallBadge(true)}
                   onRead={(id) => event("read", id)}
                   onEdit={(item) => onEdit?.(app, item)}
                   onAdd={() => onAdd?.(app)}
                   onBack={() => setApp("")}
                   onSettings={onSettings}
+                  onRestart={restartStory}
+                  onCallback={handlePhoneCallback}
                   onUi={(key, value) => {
                     const current = runtimeRef.current;
                     update(
@@ -493,6 +673,8 @@ function PhoneRuntime({
                 onFolder={setFolder}
                 search={() => setPanel("search")}
                 time={displayTime}
+                phoneMissedCallBadge={s.ui?.phone?.missedCallBadge === true}
+                wechatUnreadBadge={s.ui?.wechat?.unreadBadge !== false}
                 icon={(a, small) => (
                   <AppIcon
                     key={a.id}
@@ -555,11 +737,14 @@ function PhoneRuntime({
                     <SystemNotifications
                       notices={s.notifications}
                       apps={work.apps}
-                      onOpen={() => {
+                      onOpen={(id, index) => {
+                        noticesSeen.current = runtimeRef.current.notifications.length;
+                        dismissNotice(index);
                         setPanel("");
-                        if (locked) beginUnlock();
-                        else if (installedApps.some((a) => a.id === "messages"))
-                          open("messages");
+                        if (locked) {
+                          pendingUnlockApp.current = id;
+                          beginUnlock();
+                        } else open(id);
                       }}
                       onDismiss={dismissNotice}
                     />
@@ -608,11 +793,10 @@ function PhoneRuntime({
               </button>
             </div>
           )}
-          {!creator && s.incomingCall && (
+          {!creator && s.incomingCall && ["ringing", "answered"].includes(s.incomingCall.status) && (
             <div className="incoming-call-screen">
               <small>
-                {s.incomingCall.status === "ringing" ? "来电" : "通话中"} ·
-                作品内模拟
+                {s.incomingCall.status === "ringing" ? "系统来电" : "系统电话 · 通话中"}
               </small>
               <div className="incoming-avatar">
                 {s.incomingCall.caller.slice(0, 1)}
@@ -620,9 +804,19 @@ function PhoneRuntime({
               <h2>{s.incomingCall.caller}</h2>
               {s.incomingCall.status === "answered" &&
                 (() => {
-                  const record = work.data.phone?.find(
-                    (i) => i.id === s.incomingCall?.target,
-                  );
+                  const call = s.incomingCall!;
+                  const record = work.data.phone?.find((i) => i.id === call.target);
+                  const elapsed = Math.max(0, callClock - (call.startedAt || callClock));
+                  if (call.captions?.length) {
+                    const index = Math.min(call.captions.length - 1, Math.floor(elapsed / 4000));
+                    return (
+                      <div className="incoming-call-caption">
+                        <time>{String(Math.floor(elapsed / 60000)).padStart(2, "0")}:{String(Math.floor(elapsed / 1000) % 60).padStart(2, "0")}</time>
+                        <p>{call.captions[index]}</p>
+                        {elapsed >= call.captions.length * 4000 && <small>对话字幕已播放完</small>}
+                      </div>
+                    );
+                  }
                   return record?.kind === "audio" && safeMedia(record.media) ? (
                     <audio controls src={safeMedia(record.media)} />
                   ) : (
@@ -634,7 +828,27 @@ function PhoneRuntime({
                   className="decline-call"
                   onClick={() => {
                     const call = runtimeRef.current.incomingCall;
-                    if (call)
+                    if (call && call.target === "wechat-first-call") {
+                      const status = call.status === "ringing" ? "declined" : "ended";
+                      const current = runtimeRef.current;
+                      let next = dispatch(work, { ...current, incomingCall: { ...call, status } }, status === "declined" ? "callDeclined" : "callEnded", call.target);
+                      const alarm = readWeChatAlarm(current);
+                      if (status === "declined") {
+                        const redialCount = alarm.redialCount || 0;
+                        next = withWeChatAlarm(next, {
+                          ...alarm,
+                          phase: redialCount === 0 ? "redial-wait" : "rejected",
+                          dueAt: redialCount === 0 ? Date.now() + 30000 : undefined,
+                          redialCount: redialCount + 1,
+                          missed: true,
+                        }, { "wechat-unread-Matthew": false });
+                        next = withPhoneCallRecord(next, "未接", 1);
+                      } else {
+                        next = withWeChatAlarm(next, { ...alarm, phase: "ended", segment: 1, missed: true });
+                      }
+                      next = { ...next, ui: { ...next.ui, phone: { ...next.ui?.phone, missedCallBadge: true } } };
+                      update(next);
+                    } else if (call)
                       update(
                         dispatch(
                           work,
@@ -657,18 +871,21 @@ function PhoneRuntime({
                     className="accept-call"
                     onClick={() => {
                       const call = runtimeRef.current.incomingCall;
-                      if (call)
-                        update(
-                          dispatch(
-                            work,
-                            {
-                              ...runtimeRef.current,
-                              incomingCall: { ...call, status: "answered" },
-                            },
-                            "callAnswered",
-                            call.target || call.caller,
-                          ),
+                      if (call) {
+                        const startedAt = Date.now();
+                        const current = runtimeRef.current;
+                        let next = dispatch(
+                          work,
+                          { ...current, incomingCall: { ...call, status: "answered", startedAt } },
+                          "callAnswered",
+                          call.target || call.caller,
                         );
+                        if (call.target === "wechat-first-call") {
+                          next = withWeChatAlarm(next, { ...readWeChatAlarm(current), phase: "connected1", segment: 1, startedAt });
+                          next = withPhoneCallRecord(next, "已接", 2);
+                        }
+                        update(next);
+                      }
                     }}
                   >
                     <PhoneIcon size={25} />
@@ -854,17 +1071,25 @@ function Media({ item }: { item: Item }) {
     </div>
   );
 }
-function AppContent({
+function AppContent(props: Parameters<typeof AppContentView>[0]) {
+  return <ResumeSurface ui={props.state.ui?.[props.app.id]} onUi={(key, value) => props.onUi?.(key, value)}><AppContentView {...props} /></ResumeSurface>;
+}
+function AppContentView({
   app,
   name,
   items,
   creator,
   state,
+  systemCall,
+  onSystemCall,
+  onMissedCall,
   onRead,
   onEdit,
   onAdd,
   onBack,
   onSettings,
+  onRestart,
+  onCallback,
   onUi,
   work,
 }: {
@@ -873,22 +1098,34 @@ function AppContent({
   items: Item[];
   creator: boolean;
   state: Runtime;
+  systemCall: Runtime["incomingCall"];
+  onSystemCall?: (call: { caller: string; target: string; captions?: string[] }) => void;
+  onMissedCall?: () => void;
   onRead: (id: string) => void;
   onEdit: (item: Item) => void;
   onAdd: () => void;
   onBack: () => void;
   onSettings?: () => void;
+  onRestart?: () => void;
+  onCallback?: (item: Item) => void;
   onUi?: (key: string, value: UiValue) => void;
   work: Work;
 }) {
-  const [detail, setDetail] = useState<Item | null>(null);
-  const [thread, setThread] = useState("");
-  const [tab, setTab] = useState(app.tabs[0]);
-  const [q, setQ] = useState("");
+  const persistent = { ui: state.ui?.[app.id], onUi: creator ? undefined : onUi };
+  const [detailId, setDetailId] = useSkinState(persistent, "navigation:detail", "");
+  const detail = items.find((i) => i.id === detailId) ?? null;
+  const setDetail = (item: Item | null) => setDetailId(item?.id ?? "");
+  const [thread, setThread] = useSkinState(persistent, "navigation:thread", "");
+  const [tab, setTab] = useSkinState(persistent, "navigation:tab", app.tabs[0]);
+  const [q, setQ] = useSkinState(persistent, "navigation:search", "");
   const [pw, setPw] = useState("");
-  const [unlocks, setUnlocks] = useState<string[]>([]);
+  const [unlocks, setUnlocks] = useSkinState<string[]>(persistent, "navigation:unlocks", []);
   const [pwError, setPwError] = useState("");
-  const [likes, setLikes] = useState<string[]>([]);
+  const [likes, setLikes] = useSkinState<string[]>(persistent, "navigation:likes", []);
+  const [detailLiked, setDetailLiked] = useSkinState(persistent, `liked-${detailId}`, false);
+  const [detailSaved, setDetailSaved] = useSkinState(persistent, `saved-${detailId}`, false);
+  const [detailReplies, setDetailReplies] = useSkinState<string[]>(persistent, `replies-${detailId}`, []);
+  const [detailDraft, setDetailDraft] = useSkinState(persistent, `draft-${detailId}`, "");
   const shown = items
     .filter((i) => creator || visible(i, state))
     .filter((i) =>
@@ -976,6 +1213,17 @@ function AppContent({
               {c}
             </p>
           ))}
+          <div className="story-detail-actions">
+            {["social", "media"].includes(app.engine) && <button aria-pressed={detailLiked} onClick={() => setDetailLiked(!detailLiked)}>{detailLiked ? "取消点赞" : "点赞"} {detail.likes + (detailLiked ? 1 : 0)}</button>}
+            <button aria-pressed={detailSaved} onClick={() => setDetailSaved(!detailSaved)}>{detailSaved ? "取消收藏" : app.id === "taobao" ? "加入收藏清单" : "收藏内容"}</button>
+          </div>
+          {["social", "media"].includes(app.engine) && <>
+            {detailReplies.map((reply, i) => <p className="comment" key={i}>{reply}</p>)}
+            <form className="story-local-reply" onSubmit={(event) => { event.preventDefault(); if (!detailDraft.trim()) return; setDetailReplies([...detailReplies, `${work.phone.owner}：${detailDraft.trim()}`]); setDetailDraft(""); }}>
+              <input aria-label="评论内容" placeholder="写一条本地评论" value={detailDraft} onChange={(event) => setDetailDraft(event.target.value)} />
+              <button disabled={!detailDraft.trim()}>发送评论</button>
+            </form>
+          </>}
         </>
       )}
     </div>
@@ -989,10 +1237,16 @@ function AppContent({
               appId={app.id}
               owner={work.phone.owner}
               virtualTime={state.time}
+              virtualDate={state.date ?? work.phone.date}
               ui={state.ui?.[app.id]}
               onUi={creator ? undefined : onUi}
+              systemCall={systemCall}
+              onSystemCall={creator ? undefined : onSystemCall}
+              onMissedCall={creator ? undefined : onMissedCall}
               name={name}
-              items={shown}
+              items={app.id === "threads"
+                ? items.filter((i) => creator || visible(i, state))
+                : shown}
               creator={creator}
               onRead={onRead}
               onItem={read}
@@ -1009,6 +1263,7 @@ function AppContent({
             <SocialDetail
               app={app.id}
               item={detail}
+              gallery={shown.filter((i) => i.meta.parentPost === detail.id)}
               back={back}
               owner={work.phone.owner}
               ui={state.ui?.[app.id]}
@@ -1016,7 +1271,7 @@ function AppContent({
             />
           ) : nativeDetailApps.has(app.id) &&
             (!detail.password || unlocks.includes(detail.id)) ? (
-            <NativeDetail app={app.id} item={detail} back={back} />
+            <NativeDetail app={app.id} item={detail} back={back} ui={state.ui?.[app.id]} onUi={onUi} onCallback={onCallback} />
           ) : (
             <>
               <div className="app-nav">
@@ -1062,6 +1317,9 @@ function AppContent({
           creator={creator}
           onItem={read}
           onSettings={onSettings}
+          onRestart={onRestart}
+          ui={state.ui?.[app.id]}
+          onUi={onUi}
         />
       ) : app.id === "calculator" && !detail ? (
         <NativeCalculator

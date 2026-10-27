@@ -37,6 +37,8 @@ type Props = {
   search: () => void;
   icon: (app: AppConfig, small?: boolean) => ReactNode;
   time: string;
+  phoneMissedCallBadge: boolean;
+  wechatUnreadBadge: boolean;
   clearApp: (id: string) => void;
 };
 const widgetLabels = {
@@ -473,6 +475,12 @@ export function HomeLauncher(p: Props) {
           <span className="app-name">{entry.folder}</span>
         </span>
       )}
+      {dock && entry.app?.id === "phone" && p.phoneMissedCallBadge && (
+        <span className="dock-missed-call-badge" aria-label="1 个未接来电">1</span>
+      )}
+      {dock && entry.app?.id === "wechat" && p.wechatUnreadBadge && (
+        <span className="dock-missed-call-badge" aria-label="1 条未读微信消息">1</span>
+      )}
       {editing && (
         <span className="launcher-remove">
           <Minus size={12} />
@@ -614,6 +622,7 @@ export function HomeLauncher(p: Props) {
         <AppDock>
           {apps
             .filter((a) => a.installed && a.visible && a.dock)
+            .sort((a, b) => { const order = ['phone', 'messages', 'camera', 'wechat']; return order.indexOf(a.id) - order.indexOf(b.id); })
             .map((a) => cell({ key: a.id, kind: "app", app: a }, true))}
         </AppDock>
       </div>
@@ -648,7 +657,7 @@ export function HomeLauncher(p: Props) {
             </button>
             <strong>
               {sheet === "library"
-                ? "App Store"
+                ? "应用商店"
                 : sheet === "widgets"
                   ? "小组件"
                   : sheet === "layout"
@@ -661,7 +670,7 @@ export function HomeLauncher(p: Props) {
               <>
                 <div className="storefront-title">
                   <h1>搜索</h1>
-                  <span>App Store</span>
+                  <span>应用商店</span>
                 </div>
                 <label className="launcher-search">
                   <Search size={18} />
